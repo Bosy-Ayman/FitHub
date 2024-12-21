@@ -68,6 +68,9 @@ def serve_image(table, table_id):
     if table == "User":
         if image_data is None or image_data[0] is None:
             return 'static/default_profile.jpg'
+    if table == "Recipe":
+        if image_data is None or image_data[0] is None:
+            return 'static/default_recipe.jpg'
     if image_data is None or image_data[0] is None:
         return None
     # change string into base64 to be read properly
@@ -75,7 +78,7 @@ def serve_image(table, table_id):
         image_data = base64.b64decode(image_data[0])
         base64_image = base64.b64encode(image_data).decode('utf-8')
         return f"data:image/jpeg;base64,{base64_image}"
-    if table == "Exercise":
+    if isinstance(image_data[0], bytes):
         base64_image = base64.b64encode(image_data[0]).decode('utf-8')
         return f"data:image/jpeg;base64,{base64_image}"
     # send image
@@ -563,6 +566,26 @@ def traineeStatsCoach():
                            trainee_info=trainee_info, exercises=exercises, workout_time=workout_time,
                            nutrition=nutrition, trainee=trainee, exercise_flag=exercise_flag,
                            nutrition_flag=nutrition_flag)
+
+
+@app.route('/profileCoachRecipes', methods=['GET', 'POST'])
+def profileCoachRecipes():
+    conn = get_db_connection()
+    gen_info = conn.execute('SELECT * FROM User WHERE User_ID = ?', (session["User_ID"],)).fetchone()
+    coach_info = conn.execute('SELECT * FROM Coach WHERE Coach_ID = ?', (session["User_ID"],)).fetchone()
+    recipes_rows = conn.execute('SELECT * FROM Recipe WHERE Coach_ID = ?', (session["User_ID"],)).fetchall()
+    conn.close()
+    recipes = []
+    print(recipes_rows)
+    for recipe in recipes_rows:
+        print(recipe)
+        recipe_img = serve_image("Recipe", recipe[0])
+        #                 name        type   ingredients   steps    nutrition      img
+        recipes.append([recipe[3], recipe[2], recipe[5], recipe[6], recipe[7], recipe_img])
+    pfp = serve_image("User", session["User_ID"])
+    print(recipes)
+    return render_template("personal_profile_coach_recipes.html", recipes=recipes, gen_info=gen_info,
+                           coach_info=coach_info, pfp=pfp)
 
 
 @app.route('/forgotPW', methods=['GET', 'POST'])
