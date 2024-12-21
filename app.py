@@ -11,6 +11,7 @@ import base64
 import ast
 import os
 from authlib.integrations.flask_client import OAuth
+from flask_bcrypt import Bcrypt
 
 # database path
 DATABASE = 'FitHub_DB.sqlite'
@@ -18,6 +19,7 @@ DATABASE = 'FitHub_DB.sqlite'
 # app initialization
 app = Flask(__name__)
 app.secret_key = 'suchasecurekey'
+bcrypt = Bcrypt(app)
 
 # oauth config
 app.config['SERVER_NAME'] = '127.0.0.1:5000'
@@ -142,11 +144,13 @@ def login():
 
         # save user if a user with teh entered email and password exists
         conn = get_db_connection()
-        user = conn.execute('SELECT * FROM User WHERE Email = ? AND password = ?',
-                            (Email, password)).fetchone()
+        user = conn.execute('SELECT * FROM User WHERE Email = ?',
+                            (Email, )).fetchone()
+        pw_hash = user[3]
+        pw_flag = bcrypt.check_password_hash(pw_hash, password)
         conn.close()
         # if a user is found save the id in the session to be used across pages
-        if user:
+        if user and pw_flag:
             session['User_ID'] = user[0]
             return redirect(url_for('redirectPerRole'))
         # if user isn't found a message is shown to inform that the credentials are invalid
@@ -825,11 +829,12 @@ def traineeSignUp():
         email_check = conn.execute('SELECT * FROM User WHERE Email = ?', (email,)).fetchone()
         if not email_check:
             sec_qa = security_question + "," + security_answer
+            hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
             # add trainee to user table
             conn.execute('INSERT INTO User (User_ID, Name, Email, Age, Gender, Password, '
                          'Role, Interests, Security_Question) '
                          'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                         (userid, username, email, age, gender, password, role, interests, sec_qa))
+                         (userid, username, email, age, gender, hashed_password, role, interests, sec_qa))
 
             # add trainee to trainee table
             conn.execute('INSERT INTO Trainee (Trainee_ID, Weight_kg, Height_m, BMI, Exercise_Level) '
@@ -900,11 +905,12 @@ def coachSignUp():
         email_check = conn.execute('SELECT * FROM User WHERE Email = ?', (email,)).fetchone()
         if not email_check:
             sec_qa = security_question + "," + security_answer
+            hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
             # add coach to user table
             conn.execute('INSERT INTO User (User_ID, Name, Email, Age, Gender, Password, '
                          'Role, Interests, Security_Question) '
                          'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                         (userid, username, email, age, gender, password, role, interests, sec_qa))
+                         (userid, username, email, age, gender, hashed_password, role, interests, sec_qa))
 
             # add coach to coach table
             conn.execute('INSERT INTO Coach (Coach_ID, Verified, Description, Experience, Certificates) '
