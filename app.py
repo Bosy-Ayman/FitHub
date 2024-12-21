@@ -1040,17 +1040,16 @@ def denyCoach():
     return redirect(url_for('unverifiedCoaches'))
 
 
-# function to get all interests
-def get_interests(conn):
-    return conn.execute('SELECT * FROM Interest').fetchall()  # fetch all interests
-
 # function to get user information
 def get_user(User_ID):
     conn = get_db_connection()  # connect to database
     user = conn.execute('SELECT * FROM User WHERE User_ID = ?', (User_ID,)).fetchone()  # fetch user info
     return user, conn
 
-  
+# function to get all interests
+def get_interests(conn):
+    return conn.execute('SELECT * FROM Interest').fetchall()  # fetch all interests
+
 # function to handle post submission
 def share_post(conn, post_content, post_media, selected_tags, user):
     postid_count = conn.execute('SELECT COUNT(*) FROM Post').fetchone()
@@ -1058,27 +1057,6 @@ def share_post(conn, post_content, post_media, selected_tags, user):
     current_time = datetime.now().strftime("%Y-%m-%d %H:%M")
     tags_str = '/'.join(selected_tags)
 
-    # Save media to a temporary file and convert to binary data
-    if post_media:
-        # Save the uploaded file to a temporary file
-        with tempfile.NamedTemporaryFile(delete=False) as temp_file:
-            temp_file.write(post_media.read())
-            temp_file_path = temp_file.name
-
-        # Convert the saved temporary file to binary using photo_to_binary
-        media_data = photo_to_binary(temp_file_path)
-
-        # Clean up the temporary file
-        os.remove(temp_file_path)
-        print("Media Data:", media_data)
-    else:
-        print("Nooooo")
-        media_data = None
-
-    conn.execute(
-        '''INSERT INTO Post (Post_ID, User_ID, Content, Time_Stamp, Media, Tags)
-
-    
     # save media as a temporary file and convert it to binary data
     media_data = None
     if post_media:
@@ -1086,10 +1064,10 @@ def share_post(conn, post_content, post_media, selected_tags, user):
         with tempfile.NamedTemporaryFile(delete=False) as temp_file:
             temp_file.write(post_media.read())
             temp_file_path = temp_file.name
-        
+
         # convert the temporary file to binary data
         media_data = photo_to_binary(temp_file_path)
-        
+
         # clean up the temporary file
         os.remove(temp_file_path)
 
@@ -1102,6 +1080,7 @@ def share_post(conn, post_content, post_media, selected_tags, user):
 
 
 # function to get user interests
+# function to get user interests
 def get_user_interests(user):
     return user['Interests'].split(',') if user['Interests'] else []
 
@@ -1110,19 +1089,12 @@ def fetch_posts_by_interest(conn, user_interests):
     if user_interests:
         placeholders = ', '.join(['?'] * len(user_interests))  # placeholders for query
         return conn.execute(
-            f'''SELECT Post.*, User.Name AS Username
-                FROM Post
-                JOIN User ON Post.User_ID = User.User_ID
-                WHERE EXISTS (
-                    SELECT 1 FROM Interest
-                    WHERE Interest.Name IN ({placeholders})
             f'''SELECT Post.*, User.Name AS Username 
                 FROM Post 
                 JOIN User ON Post.User_ID = User.User_ID
                 WHERE EXISTS (
                     SELECT 1 FROM Interest 
                     WHERE Interest.Name IN ({placeholders}) 
-
                       AND Post.Tags LIKE '%' || Interest.Interest_ID || '%'
                 )
                 ORDER BY Post.Time_Stamp DESC''',
@@ -1134,8 +1106,8 @@ def fetch_posts_by_interest(conn, user_interests):
 def fetch_remaining_posts(conn, user_interests):
     if user_interests:
         return conn.execute(
-            '''SELECT Post.*, User.Name AS Username
-               FROM Post
+            '''SELECT Post.*, User.Name AS Username 
+               FROM Post 
                JOIN User ON Post.User_ID = User.User_ID
                WHERE Post.Post_ID NOT IN (
                    SELECT Post.Post_ID 
@@ -1153,11 +1125,10 @@ def fetch_remaining_posts(conn, user_interests):
            ORDER BY Post.Time_Stamp DESC'''
     ).fetchall()
 
-
 # function to fetch comments with usernames
 def fetch_comments_with_usernames(conn):
-    return conn.execute('''SELECT Comment.*, User.Name AS Username
-                           FROM Comment
+    return conn.execute('''SELECT Comment.*, User.Name AS Username 
+                           FROM Comment 
                            JOIN User ON Comment.User_ID = User.User_ID''').fetchall()
 
 
@@ -1183,7 +1154,7 @@ def combine_posts_and_comments(all_posts, comments_with_usernames):
         })
     return posts_with_comments
 
-      
+
 # route to display and create posts
 @app.route('/posts', methods=['GET', 'POST'])
 def posts():
@@ -1255,7 +1226,6 @@ def add_comment(post_id):
     # redirect to login page if no user is logged in
     return redirect(url_for('login'))
 
-
 # route to display chats for current user or specific chat
 @app.route('/chats', methods=['GET', 'POST'])
 def view_chats():
@@ -1265,7 +1235,7 @@ def view_chats():
 
     # get current user ID from session
     current_user_id = session['User_ID']
-    
+
     # connect to database
     conn = get_db_connection()
 
@@ -1309,9 +1279,10 @@ def view_chats():
 
     # close database connection
     conn.close()
-    
+
     # render chat page
     return render_template('chat.html', chats=chats, selected_chat=selected_chat, messages=messages, current_user_id=current_user_id)
+
 
 # route to handle sending new message
 @app.route('/send_message', methods=['POST'])
@@ -1322,7 +1293,7 @@ def send_message():
 
     # get current user ID from session
     current_user_id = session['User_ID']
-    
+
     # get chat ID and message content from form
     chat_id = request.form.get('chat_id')
     message_content = request.form.get('message_content')
@@ -1338,17 +1309,17 @@ def send_message():
     try:
         # connect to database
         conn = get_db_connection()
-        
+
         # calculate new message ID
         messegeid_count = conn.execute('SELECT COUNT(*) FROM Message').fetchone()
-        new_message_id = messegeid_count[0] + 1  
+        new_message_id = messegeid_count[0] + 1
 
         # insert message into database
         conn.execute('''
             INSERT INTO Message (Message_ID, Chat_ID, Sender_ID, Content, Time_Stamp)
             VALUES (? ,?, ?, ?, datetime('now'))
         ''', (new_message_id, chat_id, current_user_id, message_content))
-        
+
         # commit changes and close connection
         conn.commit()
         conn.close()
@@ -1359,7 +1330,7 @@ def send_message():
         # rollback on error and close connection
         conn.rollback()
         conn.close()
-        
+
         # show error message
         flash(f'Failed to send message: {str(e)}', 'error')
 
