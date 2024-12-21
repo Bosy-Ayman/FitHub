@@ -16,7 +16,6 @@ import tempfile
 from werkzeug.utils import secure_filename
 import mimetypes
 
-
 # database path
 DATABASE = 'FitHub_DB.sqlite'
 
@@ -99,9 +98,6 @@ def send_email(rcvr, subject, content):
     msg = Message(subject, sender=co_email, recipients=[rcvr])
     msg.body = content
     mail.send(msg)
-=======
-    # send image
-    return send_file(BytesIO(image_data), mimetype='image/jpg', as_attachment=False)
 
 
 # load homepage
@@ -115,12 +111,11 @@ def home_page():
         user = conn.execute('SELECT * FROM User WHERE User_ID = ?', (User_ID,)).fetchone()
         conn.close()
         img = serve_image("User", user[0])
-        img = serve_image("User", user[0])
         # send the user to the homepage
-        return render_template("homepage.html", user=user, img=img)
         return render_template("homepage.html", user=user, img=img)
     # if there's no user logged in, redirects them to the login page
     return redirect(url_for('login'))
+
 
 # sign up page where the new user decides if they're a coach or a trainee to
 # get redirected to the appropriate sign-up page
@@ -150,7 +145,7 @@ def login():
         # save user if a user with teh entered email and password exists
         conn = get_db_connection()
         user = conn.execute('SELECT * FROM User WHERE Email = ?',
-                            (Email, )).fetchone()
+                            (Email,)).fetchone()
         pw_hash = user[3]
         pw_flag = bcrypt.check_password_hash(pw_hash, password)
         conn.close()
@@ -528,7 +523,8 @@ def profileCoachTrainees():
         trainee_info = [trainee[8], img, trainee[0]]
         trainees.append(trainee_info)
     pfp = serve_image("User", session["User_ID"])
-    return render_template("personal_profile_coach_trainees.html", trainees=trainees, gen_info=gen_info, coach_info=coach_info, pfp=pfp)
+    return render_template("personal_profile_coach_trainees.html", trainees=trainees, gen_info=gen_info,
+                           coach_info=coach_info, pfp=pfp)
 
 
 @app.route('/traineeStatsCoach', methods=['GET', 'POST'])
@@ -937,7 +933,6 @@ def coachSignUp():
 
 @app.route('/oauthCoachSignup', methods=['GET', 'POST'])
 def oauthCoachSignup():
-    email_exists = False
     questions = ["What was your dream job as a child?", "What was the name of your first stuffed animal?",
                  "What was the color of your favorite childhood blanket?"]
     security_question = questions[np.random.randint(0, len(questions))]
@@ -1046,9 +1041,11 @@ def get_user(User_ID):
     user = conn.execute('SELECT * FROM User WHERE User_ID = ?', (User_ID,)).fetchone()  # fetch user info
     return user, conn
 
+
 # function to get all interests
 def get_interests(conn):
     return conn.execute('SELECT * FROM Interest').fetchall()  # fetch all interests
+
 
 # function to handle post submission
 def share_post(conn, post_content, post_media, selected_tags, user):
@@ -1072,7 +1069,7 @@ def share_post(conn, post_content, post_media, selected_tags, user):
         os.remove(temp_file_path)
 
     conn.execute(
-        '''INSERT INTO Post (Post_ID, User_ID, Content, Time_Stamp, Media, Tags) 
+        '''INSERT INTO Post (Post_ID, User_ID, Content, Time_Stamp, Media, Tags)
            VALUES (?, ?, ?, ?, ?, ?)''',
         (postid, user['User_ID'], post_content, current_time, media_data, tags_str)
     )
@@ -1084,17 +1081,18 @@ def share_post(conn, post_content, post_media, selected_tags, user):
 def get_user_interests(user):
     return user['Interests'].split(',') if user['Interests'] else []
 
+
 # function to fetch posts by interest
 def fetch_posts_by_interest(conn, user_interests):
     if user_interests:
         placeholders = ', '.join(['?'] * len(user_interests))  # placeholders for query
         return conn.execute(
-            f'''SELECT Post.*, User.Name AS Username 
-                FROM Post 
+            f'''SELECT Post.*, User.Name AS Username
+                FROM Post
                 JOIN User ON Post.User_ID = User.User_ID
                 WHERE EXISTS (
-                    SELECT 1 FROM Interest 
-                    WHERE Interest.Name IN ({placeholders}) 
+                    SELECT 1 FROM Interest
+                    WHERE Interest.Name IN ({placeholders})
                       AND Post.Tags LIKE '%' || Interest.Interest_ID || '%'
                 )
                 ORDER BY Post.Time_Stamp DESC''',
@@ -1102,33 +1100,35 @@ def fetch_posts_by_interest(conn, user_interests):
         ).fetchall()
     return []
 
+
 # function to fetch remaining posts
 def fetch_remaining_posts(conn, user_interests):
     if user_interests:
         return conn.execute(
-            '''SELECT Post.*, User.Name AS Username 
-               FROM Post 
+            '''SELECT Post.*, User.Name AS Username
+               FROM Post
                JOIN User ON Post.User_ID = User.User_ID
                WHERE Post.Post_ID NOT IN (
-                   SELECT Post.Post_ID 
-                   FROM Post 
-                   JOIN Interest 
+                   SELECT Post.Post_ID
+                   FROM Post
+                   JOIN Interest
                    ON Post.Tags LIKE '%' || Interest.Interest_ID || '%'
                    WHERE Interest.Name IN ({}))
                ORDER BY Post.Time_Stamp DESC'''.format(', '.join(['?'] * len(user_interests))),
             tuple(user_interests)
         ).fetchall()
     return conn.execute(
-        '''SELECT Post.*, User.Name AS Username 
-           FROM Post 
+        '''SELECT Post.*, User.Name AS Username
+           FROM Post
            JOIN User ON Post.User_ID = User.User_ID
            ORDER BY Post.Time_Stamp DESC'''
     ).fetchall()
 
+
 # function to fetch comments with usernames
 def fetch_comments_with_usernames(conn):
-    return conn.execute('''SELECT Comment.*, User.Name AS Username 
-                           FROM Comment 
+    return conn.execute('''SELECT Comment.*, User.Name AS Username
+                           FROM Comment
                            JOIN User ON Comment.User_ID = User.User_ID''').fetchall()
 
 
@@ -1189,10 +1189,12 @@ def posts():
 
         conn.close()  # close database connection
         # render posts page with user, posts, and interests
-        return render_template("posts.html", user=user, posts_with_comments=posts_with_comments, interests=all_interests)
+        return render_template("posts.html", user=user, posts_with_comments=posts_with_comments,
+                               interests=all_interests)
 
     # redirect to login page if no user is logged in
     return redirect(url_for('login'))
+
 
 # route to add a comment to a post
 @app.route('/add_comment/<int:post_id>', methods=['POST'])
@@ -1226,6 +1228,7 @@ def add_comment(post_id):
     # redirect to login page if no user is logged in
     return redirect(url_for('login'))
 
+
 # route to display chats for current user or specific chat
 @app.route('/chats', methods=['GET', 'POST'])
 def view_chats():
@@ -1241,13 +1244,13 @@ def view_chats():
 
     # fetch chats for current user
     chats = conn.execute('''
-        SELECT Chat.Chat_ID, 
-               CASE 
+        SELECT Chat.Chat_ID,
+               CASE
                    WHEN Chat.User1_ID = ? THEN Chat.User2_ID
                    ELSE Chat.User1_ID
                END AS Other_User_ID,
-               (SELECT Name FROM User WHERE User.User_ID = 
-                   CASE 
+               (SELECT Name FROM User WHERE User.User_ID =
+                   CASE
                        WHEN Chat.User1_ID = ? THEN Chat.User2_ID
                        ELSE Chat.User1_ID
                    END) AS Other_User_Name
@@ -1281,7 +1284,8 @@ def view_chats():
     conn.close()
 
     # render chat page
-    return render_template('chat.html', chats=chats, selected_chat=selected_chat, messages=messages, current_user_id=current_user_id)
+    return render_template('chat.html', chats=chats, selected_chat=selected_chat, messages=messages,
+                           current_user_id=current_user_id)
 
 
 # route to handle sending new message
@@ -1306,10 +1310,8 @@ def send_message():
         flash('Chat ID and message content are required.', 'error')
         return redirect(url_for('view_chats', chat_id=chat_id))
 
+    conn = get_db_connection()
     try:
-        # connect to database
-        conn = get_db_connection()
-
         # calculate new message ID
         messegeid_count = conn.execute('SELECT COUNT(*) FROM Message').fetchone()
         new_message_id = messegeid_count[0] + 1
@@ -1338,7 +1340,7 @@ def send_message():
     return redirect(url_for('view_chats', chat_id=chat_id))
 
 
-#Coach can add new recipes
+# Coach can add new recipes
 @app.route('/add_recipe', methods=['GET', 'POST'])
 def add_recipe():
     if 'User_ID' not in session:
@@ -1474,7 +1476,7 @@ def GetExercises():
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         cursor.execute("SELECT Exercise_ID, Name, Media, Duration, Equipment, Muscles_Targeted FROM Exercise")
-        
+
         exercises = cursor.fetchall()
         conn.close()
 
@@ -1524,7 +1526,7 @@ def GetExerciseDetails(exercise_id):
             media_base64 = base64.b64encode(result["Media"]).decode('utf-8')
             media_base64 = f"data:image/jpeg;base64,{media_base64}"  # Assuming JPEG format
             print("Base64 Encoded Media:", media_base64[:100])  # Log the first 100 chars of the Base64 string
-        
+
         exercise_details = {
             "Exercise_ID": result["Exercise_ID"],
             "Coach_ID": result["Coach_ID"],
@@ -1642,7 +1644,7 @@ def add_recipe_to_trainee():
 
         # Check if an entry already exists for the trainee for today's date in Trainee_Recipes
         existing_entry = conn.execute("""
-            SELECT 
+            SELECT
                 IFNULL(Trainee_Calories, 0) AS Trainee_Calories,
                 IFNULL(Trainee_Fat, 0) AS Trainee_Fat,
                 IFNULL(Trainee_Carbs, 0) AS Trainee_Carbs,
@@ -1667,7 +1669,8 @@ def add_recipe_to_trainee():
         else:
             # Insert a new record for today's date
             conn.execute("""
-                INSERT INTO Trainee_Recipes (Trainee_ID, Timestamp, Trainee_Calories, Trainee_Fat, Trainee_Carbs, Trainee_Protein)
+                INSERT INTO Trainee_Recipes (Trainee_ID, Timestamp, Trainee_Calories, Trainee_Fat,
+                Trainee_Carbs, Trainee_Protein)
                 VALUES (?, ?, ?, ?, ?, ?)
             """, (user_id, today_date, calories, fats, carbs, protein))
 
@@ -1709,7 +1712,7 @@ def add_exercise_to_trainee():
 
         # Check if the exercise already exists for the trainee on the current date
         existing_entry = conn.execute(
-            """SELECT * FROM Trainee_Exercises 
+            """SELECT * FROM Trainee_Exercises
                WHERE Trainee_ID = ? AND Exercise_ID = ? AND DATE(Timestamp) = ?""",
             (user_id, exercise_id, today_date)
         ).fetchone()
@@ -1732,6 +1735,7 @@ def add_exercise_to_trainee():
 
     return redirect(url_for('GetExerciseDetails', exercise_id=exercise_id))
 
+
 @app.route('/notifications')
 def view_notifications():
     if 'User_ID' not in session:
@@ -1742,8 +1746,8 @@ def view_notifications():
     conn = get_db_connection()
     notifications = []
     try:
-       
-        today_date = datetime.now().strftime("%Y-%m-%d")  
+
+        today_date = datetime.now().strftime("%Y-%m-%d")
         print(f"Today's date: {today_date}")
 
         # Check if the trainee has logged any exercises today
