@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FitHub Chat</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='chat.css') }}">
+</head>
+<body>
+    <div class="chat-container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <h4>Chats</h4>
+            <ul class="list-group">
+                {% for chat in chats %}
+                <li class="list-group-item {% if selected_chat and selected_chat.Chat_ID == chat.Chat_ID %}active{% endif %}">
+                    <a href="{{ url_for('view_chats', chat_id=chat.Chat_ID) }}" 
+                       class="{% if selected_chat and selected_chat.Chat_ID == chat.Chat_ID %}selected{% else %}link{% endif %}">
+                        {{ chat.Other_User_Name }}
+                    </a>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <!-- Chat Window -->
+        <div class="chat-window">
+            {% if selected_chat %}
+                <div class="chat-header">
+                    <h5>{{ selected_chat.Other_User_Name }}</h5>
+                </div>
+                <div class="chat-messages">
+                    {% if messages %}
+                        {% for msg in messages %}
+                            {% if msg.Sender_ID == current_user_id %}
+                                <div class="message right">
+                                    <div class="content">
+                                        {{ msg.Content }}
+                                        <br>
+                                        <small>{{ msg.Time_Stamp }}</small>
+                                    </div>
+                                </div>
+                            {% else %}
+                                <div class="message left">
+                                    <div class="content">
+                                        {{ msg.Content }}
+                                        <br>
+                                        <small>{{ msg.Time_Stamp }}</small>
+                                    </div>
+                                </div>
+                            {% endif %}
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-center">No messages yet. Start the conversation!</p>
+                    {% endif %}
+                </div>
+                <div class="chat-input">
+                    <form action="{{ url_for('send_message') }}" method="POST">
+                        <input type="hidden" name="chat_id" value="{{ selected_chat.Chat_ID }}">
+                        <textarea name="message_content" class="input-area" placeholder="Type your message..." required></textarea>
+                        <button type="submit" class="send-button">Send</button>
+                    </form>
+                </div>
+            {% else %}
+                <div class="empty-chat">
+                    <h5>Select a chat to start messaging</h5>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Auto-scroll to the bottom of the chat messages -->
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            const chatMessages = document.querySelector('.chat-messages');
+            if (chatMessages) {
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }
+        });
+    </script>
+</body>
+</html>

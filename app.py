@@ -9,6 +9,7 @@ from flask_mail import Mail, Message
 import numpy as np
 import base64
 
+
 # database path
 DATABASE = 'FitHub_DB.sqlite'
 
@@ -24,27 +25,21 @@ def get_db_connection():
     return conn
 
 
-# save image as binary data
 def photo_to_binary(img):
     with open(img, 'rb') as f:
         image_data = base64.b64encode(f.read()).decode('utf-8')
     return image_data
 
 
-# read binary image
 def serve_image(table, table_id):
     conn = get_db_connection()
-    if table == "User":
-        query = f'SELECT Profile_picture FROM {table} WHERE User_ID = ?'
-    else:
-        tid = table + "_ID"
-        query = f'SELECT Media FROM {table} WHERE {tid} = ?'
+    query = f'SELECT Profile_picture FROM {table} WHERE User_ID = ?'
     image_data = conn.execute(query, (table_id,)).fetchone()
     conn.close()
-    print(image_data[0])
+
     # return default profile photo if user hasn't uploaded a profile picture
     if table == "User":
-        if image_data is None or image_data[0] is None:
+        if not image_data or not image_data[0]:
             return 'static/default_profile.jpg'
     # change string into base64 to be read properly
     if isinstance(image_data[0], str):
@@ -66,11 +61,12 @@ def home_page():
         user = conn.execute('SELECT * FROM User WHERE User_ID = ?', (User_ID,)).fetchone()
         conn.close()
         img = serve_image("User", user[0])
+        img = serve_image("User", user[0])
         # send the user to the homepage
+        return render_template("homepage.html", user=user, img=img)
         return render_template("homepage.html", user=user, img=img)
     # if there's no user logged in, redirects them to the login page
     return redirect(url_for('login'))
-
 
 # sign up page where the new user decides if they're a coach or a trainee to
 # get redirected to the appropriate sign-up page
@@ -464,120 +460,221 @@ def denyCoach():
     return redirect(url_for('unverifiedCoaches'))
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# function to get user information
+def get_user(User_ID):
+    conn = get_db_connection()  # connect to database
+    user = conn.execute('SELECT * FROM User WHERE User_ID = ?', (User_ID,)).fetchone()  # fetch user info
+    return user, conn
+
+# function to get all interests
+def get_interests(conn):
+    return conn.execute('SELECT * FROM Interest').fetchall()  # fetch all interests
+
+# function to handle post submission
+def share_post(conn, post_content, post_media, selected_tags, user):
+    postid_count = conn.execute('SELECT COUNT(*) FROM Post').fetchone()
+    postid = postid_count[0] + 1
+    current_time = datetime.now().strftime("%Y-%m-%d %H:%M")
+    tags_str = '/'.join(selected_tags)
+    
+    # save media as a temporary file and convert it to binary data
+    media_data = None
+    if post_media:
+        # save the file to a temporary location
+        with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+            temp_file.write(post_media.read())
+            temp_file_path = temp_file.name
+        
+        # convert the temporary file to binary data
+        media_data = photo_to_binary(temp_file_path)
+        
+        # clean up the temporary file
+        os.remove(temp_file_path)
+
+    conn.execute(
+        '''INSERT INTO Post (Post_ID, User_ID, Content, Time_Stamp, Media, Tags) 
+           VALUES (?, ?, ?, ?, ?, ?)''',
+        (postid, user['User_ID'], post_content, current_time, media_data, tags_str)
+    )
+    conn.commit()
+    
+
+# function to get user interests
+def get_user_interests(user):
+    return user['Interests'].split(',') if user['Interests'] else []
+
+# function to fetch posts by interest
+def fetch_posts_by_interest(conn, user_interests):
+    if user_interests:
+        placeholders = ', '.join(['?'] * len(user_interests))  # placeholders for query
+        return conn.execute(
+            f'''SELECT Post.*, User.Name AS Username 
+                FROM Post 
+                JOIN User ON Post.User_ID = User.User_ID
+                WHERE EXISTS (
+                    SELECT 1 FROM Interest 
+                    WHERE Interest.Name IN ({placeholders}) 
+                      AND Post.Tags LIKE '%' || Interest.Interest_ID || '%'
+                )
+                ORDER BY Post.Time_Stamp DESC''',
+            tuple(user_interests)
+        ).fetchall()
+    return []
+
+# function to fetch remaining posts
+def fetch_remaining_posts(conn, user_interests):
+    if user_interests:
+        return conn.execute(
+            '''SELECT Post.*, User.Name AS Username 
+               FROM Post 
+               JOIN User ON Post.User_ID = User.User_ID
+               WHERE Post.Post_ID NOT IN (
+                   SELECT Post.Post_ID 
+                   FROM Post 
+                   JOIN Interest 
+                   ON Post.Tags LIKE '%' || Interest.Interest_ID || '%'
+                   WHERE Interest.Name IN ({}))
+               ORDER BY Post.Time_Stamp DESC'''.format(', '.join(['?'] * len(user_interests))),
+            tuple(user_interests)
+        ).fetchall()
+    return conn.execute(
+        '''SELECT Post.*, User.Name AS Username 
+           FROM Post 
+           JOIN User ON Post.User_ID = User.User_ID
+           ORDER BY Post.Time_Stamp DESC'''
+    ).fetchall()
+
+# function to fetch comments with usernames
+def fetch_comments_with_usernames(conn):
+    return conn.execute('''SELECT Comment.*, User.Name AS Username 
+                           FROM Comment 
+                           JOIN User ON Comment.User_ID = User.User_ID''').fetchall()
+
+# function to combine posts with their respective comments
+def combine_posts_and_comments(all_posts, comments_with_usernames):
+    posts_with_comments = []
+    for post in all_posts:
+        post_comments = [
+            {'Username': comment['Username'], 'Content': comment['Content']}
+            for comment in comments_with_usernames
+            if comment['Post_ID'] == post['Post_ID']
+        ]
+        posts_with_comments.append({
+            'post': {
+                'Post_ID': post['Post_ID'],
+                'Content': post['Content'],
+                'Media': post['Media'],
+                'Username': post['Username'],
+                'User_ID': post['User_ID'],
+                'Time_Stamp': post['Time_Stamp']
+            },
+            'comments': post_comments
+        })
+    return posts_with_comments
+
 # route to display and create posts
 @app.route('/posts', methods=['GET', 'POST'])
 def posts():
     # check if a user is logged in
     if 'User_ID' in session:
         User_ID = session['User_ID']  # get user id from session
-        conn = get_db_connection()  # connect to database
 
-        # fetch user information from the database
-        user = conn.execute('SELECT * FROM User WHERE User_ID = ?', (User_ID,)).fetchone()
-
-        # fetch all available interests from the database
-        all_interests = conn.execute('SELECT * FROM Interest').fetchall()
+        # Get user info and interests
+        user, conn = get_user(User_ID)
+        all_interests = get_interests(conn)
 
         # handle post submission
         if request.method == 'POST':
             post_content = request.form['content']  # get post content
-            post_media = request.form.get('media')  # get post media (to be handled)
+            post_media = request.files['media']  # get post media (to be handled)
             selected_tags = request.form.getlist('tags')  # get selected tags as a list
+            share_post(conn, post_content, post_media, selected_tags, user)
 
-            # calculate new post id
-            postid_count = conn.execute('SELECT COUNT(*) FROM Post').fetchone()
-            postid = postid_count[0] + 1  # increment post count for unique id
-
-            # get current datetime in standardized format
-            current_time = datetime.now().strftime("%Y-%m-%d %H:%M")
-
-            # save post to database with tags as a slash-separated string
-            tags_str = '/'.join(selected_tags)
-            conn.execute(
-                '''INSERT INTO Post (Post_ID, User_ID, Content, Time_Stamp, Media, Tags)
-                   VALUES (?, ?, ?, ?, ?, ?)''',
-                (postid, user['User_ID'], post_content, current_time, post_media, tags_str)
-            )
-            conn.commit()  # commit changes to database
-
-        # get user interests as a list
-        user_interests = user['Interests'].split(',') if user['Interests'] else []
-        posts_by_interest = []  # initialize posts matching user interests
-
-        # fetch posts matching user interests
-        if user_interests:
-            placeholders = ', '.join(['?'] * len(user_interests))  # placeholders for query
-            posts_by_interest = conn.execute(
-                f'''SELECT Post.*, User.Name AS Username
-                    FROM Post
-                    JOIN User ON Post.User_ID = User.User_ID
-                    WHERE EXISTS (
-                        SELECT 1 FROM Interest
-                        WHERE Interest.Name IN ({placeholders})
-                          AND Post.Tags LIKE '%' || Interest.Interest_ID || '%'
-                    )
-                    ORDER BY Post.Time_Stamp DESC''',
-                tuple(user_interests)
-            ).fetchall()
-
-        # fetch remaining posts not matching user interests
-        remaining_posts = conn.execute(
-            '''SELECT Post.*, User.Name AS Username
-               FROM Post
-               JOIN User ON Post.User_ID = User.User_ID
-               WHERE Post.Post_ID NOT IN (
-                   SELECT Post.Post_ID
-                   FROM Post
-                   JOIN Interest
-                   ON Post.Tags LIKE '%' || Interest.Interest_ID || '%'
-                   WHERE Interest.Name IN ({}))
-               ORDER BY Post.Time_Stamp DESC'''.format(', '.join(['?'] * len(user_interests))),
-            tuple(user_interests)
-        ).fetchall() if user_interests else conn.execute(
-            '''SELECT Post.*, User.Name AS Username
-               FROM Post
-               JOIN User ON Post.User_ID = User.User_ID
-               ORDER BY Post.Time_Stamp DESC'''
-        ).fetchall()
+        # get user interests and posts
+        user_interests = get_user_interests(user)
+        posts_by_interest = fetch_posts_by_interest(conn, user_interests)
+        remaining_posts = fetch_remaining_posts(conn, user_interests)
 
         # combine and sort all posts by timestamp
         all_posts = sorted(posts_by_interest + remaining_posts, key=lambda x: x['Time_Stamp'], reverse=True)
 
         # fetch all comments with usernames
-        comments_with_usernames = conn.execute('''
-            SELECT Comment.*, User.Name AS Username
-            FROM Comment
-            JOIN User ON Comment.User_ID = User.User_ID
-        ''').fetchall()
+        comments_with_usernames = fetch_comments_with_usernames(conn)
 
         # combine posts with their respective comments
-        posts_with_comments = []
-        for post in all_posts:
-            post_comments = [
-                {'Username': comment['Username'], 'Content': comment['Content']}
-                for comment in comments_with_usernames
-                if comment['Post_ID'] == post['Post_ID']
-            ]
-            posts_with_comments.append({
-                'post': {
-                    'Post_ID': post['Post_ID'],
-                    'Content': post['Content'],
-                    'Media': post['Media'],
-                    'Username': post['Username'],
-                    'User_ID': post['User_ID'],
-                    'Time_Stamp': post['Time_Stamp']
-                },
-                'comments': post_comments
-            })
+        posts_with_comments = combine_posts_and_comments(all_posts, comments_with_usernames)
 
         conn.close()  # close database connection
         # render posts page with user, posts, and interests
-        return render_template("posts.html", user=user, posts_with_comments=posts_with_comments,
-                               interests=all_interests)
+        return render_template("posts.html", user=user, posts_with_comments=posts_with_comments, interests=all_interests)
 
     # redirect to login page if no user is logged in
     return redirect(url_for('login'))
-
 
 # route to add a comment to a post
 @app.route('/add_comment/<int:post_id>', methods=['POST'])
@@ -612,7 +709,180 @@ def add_comment(post_id):
     return redirect(url_for('login'))
 
 
-# Coach can add new recipes
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# route to display chats for current user or specific chat
+@app.route('/chats', methods=['GET', 'POST'])
+def view_chats():
+    # redirect to login if not logged in
+    if 'User_ID' not in session:
+        return redirect(url_for('login'))
+
+    # get current user ID from session
+    current_user_id = session['User_ID']
+    
+    # connect to database
+    conn = get_db_connection()
+
+    # fetch chats for current user
+    chats = conn.execute('''
+        SELECT Chat.Chat_ID, 
+               CASE 
+                   WHEN Chat.User1_ID = ? THEN Chat.User2_ID
+                   ELSE Chat.User1_ID
+               END AS Other_User_ID,
+               (SELECT Name FROM User WHERE User.User_ID = 
+                   CASE 
+                       WHEN Chat.User1_ID = ? THEN Chat.User2_ID
+                       ELSE Chat.User1_ID
+                   END) AS Other_User_Name
+        FROM Chat
+        WHERE Chat.User1_ID = ? OR Chat.User2_ID = ?
+        ORDER BY (SELECT MAX(Time_Stamp) FROM Message WHERE Message.Chat_ID = Chat.Chat_ID) DESC
+    ''', (current_user_id, current_user_id, current_user_id, current_user_id)).fetchall()
+
+    # get selected chat ID from URL
+    selected_chat_id = request.args.get('chat_id')
+    selected_chat = None
+    messages = []
+
+    # if chat selected, fetch messages
+    if selected_chat_id:
+        selected_chat = next((chat for chat in chats if str(chat['Chat_ID']) == selected_chat_id), None)
+        if selected_chat:
+            # fetch messages for selected chat
+            messages = conn.execute('''
+                SELECT Message.Content, Message.Sender_ID, Message.Time_Stamp, User.Name
+                FROM Message
+                JOIN User ON Message.Sender_ID = User.User_ID
+                WHERE Message.Chat_ID = ?
+                ORDER BY Message.Time_Stamp ASC
+            ''', (selected_chat_id,)).fetchall()
+        else:
+            # show error if chat invalid
+            flash('Invalid chat selected.', 'danger')
+
+    # close database connection
+    conn.close()
+    
+    # render chat page
+    return render_template('chat.html', chats=chats, selected_chat=selected_chat, messages=messages, current_user_id=current_user_id)
+
+# route to handle sending new message
+@app.route('/send_message', methods=['POST'])
+def send_message():
+    # redirect to login if not logged in
+    if 'User_ID' not in session:
+        return redirect(url_for('login'))
+
+    # get current user ID from session
+    current_user_id = session['User_ID']
+    
+    # get chat ID and message content from form
+    chat_id = request.form.get('chat_id')
+    message_content = request.form.get('message_content')
+
+    # log chat ID and message content for debugging
+    print(f"Chat ID: {chat_id}, Message Content: {message_content}")
+
+    # show error if chat ID or message content missing
+    if not chat_id or not message_content:
+        flash('Chat ID and message content are required.', 'error')
+        return redirect(url_for('view_chats', chat_id=chat_id))
+
+    try:
+        # connect to database
+        conn = get_db_connection()
+        
+        # calculate new message ID
+        messegeid_count = conn.execute('SELECT COUNT(*) FROM Message').fetchone()
+        new_message_id = messegeid_count[0] + 1  
+
+        # insert message into database
+        conn.execute('''
+            INSERT INTO Message (Message_ID, Chat_ID, Sender_ID, Content, Time_Stamp)
+            VALUES (? ,?, ?, ?, datetime('now'))
+        ''', (new_message_id, chat_id, current_user_id, message_content))
+        
+        # commit changes and close connection
+        conn.commit()
+        conn.close()
+
+        # show success message
+        flash('Message sent successfully!', 'success')
+    except Exception as e:
+        # rollback on error and close connection
+        conn.rollback()
+        conn.close()
+        
+        # show error message
+        flash(f'Failed to send message: {str(e)}', 'error')
+
+    # redirect to chat view page
+    return redirect(url_for('view_chats', chat_id=chat_id))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#Coach can add new recipes
 @app.route('/add_recipe', methods=['GET', 'POST'])
 def add_recipe():
     if 'User_ID' not in session:
@@ -875,194 +1145,7 @@ def AddExercises():
             print(f"Error occurred while adding exercise: {str(e)}")
             flash(f"An error occurred: {str(e)}. Please try again later.", 'error')
             return redirect(url_for('AddExercises'))
-
     return render_template('add_exercise.html')
-
-
-@app.route('/add_recipe_to_trainee', methods=['POST'])
-def add_recipe_to_trainee():
-    if 'User_ID' not in session:
-        flash("You need to be logged in to perform this action.", "danger")
-        return redirect(url_for('login'))
-    user_id = session['User_ID']
-    recipe_id = request.form.get('recipe_id')
-    conn = get_db_connection()
-
-    try:
-        # Verify if the user is a trainee
-        trainee = conn.execute('SELECT * FROM Trainee WHERE Trainee_ID = ?', (user_id,)).fetchone()
-        if not trainee:
-            flash("You are not authorized to add recipes.", "danger")
-            return redirect(url_for('GetRecipes'))
-
-        # Fetch recipe's nutritional information
-        recipe = conn.execute('SELECT Nutrition_Information FROM Recipe WHERE Recipe_ID = ?', (recipe_id,)).fetchone()
-        if not recipe:
-            flash("Recipe not found.", "danger")
-            return redirect(url_for('GetRecipes'))
-
-        # Parse nutritional information
-        nutrition_parts = {
-            item.split(':')[0].strip(): float(item.split(':')[1].strip().replace('g', '').strip())
-            for item in recipe['Nutrition_Information'].split(',')
-        }
-
-        calories = nutrition_parts.get('Calories', 0)
-        fats = nutrition_parts.get('Fat', 0)
-        carbs = nutrition_parts.get('Carbs', 0)
-        protein = nutrition_parts.get('Protein', 0)
-
-        # Get today's date (without the time)
-        today_date = datetime.now().strftime("%Y-%m-%d")
-
-        # Check if an entry already exists for the trainee for today's date in Trainee_Recipes
-        existing_entry = conn.execute("""
-            SELECT 
-                IFNULL(Trainee_Calories, 0) AS Trainee_Calories,
-                IFNULL(Trainee_Fat, 0) AS Trainee_Fat,
-                IFNULL(Trainee_Carbs, 0) AS Trainee_Carbs,
-                IFNULL(Trainee_Protein, 0) AS Trainee_Protein
-            FROM Trainee_Recipes
-            WHERE Trainee_ID = ? AND DATE(Timestamp) = ?
-        """, (user_id, today_date)).fetchone()
-
-        if existing_entry:
-            # Sum the existing values with the new ones
-            updated_calories = existing_entry['Trainee_Calories'] + calories
-            updated_fats = existing_entry['Trainee_Fat'] + fats
-            updated_carbs = existing_entry['Trainee_Carbs'] + carbs
-            updated_protein = existing_entry['Trainee_Protein'] + protein
-
-            # Update the record for today's date
-            conn.execute("""
-                UPDATE Trainee_Recipes
-                SET Trainee_Calories = ?, Trainee_Fat = ?, Trainee_Carbs = ?, Trainee_Protein = ?
-                WHERE Trainee_ID = ? AND DATE(Timestamp) = ?
-            """, (updated_calories, updated_fats, updated_carbs, updated_protein, user_id, today_date))
-        else:
-            # Insert a new record for today's date
-            conn.execute("""
-                INSERT INTO Trainee_Recipes (Trainee_ID, Timestamp, Trainee_Calories, Trainee_Fat, Trainee_Carbs, Trainee_Protein)
-                VALUES (?, ?, ?, ?, ?, ?)
-            """, (user_id, today_date, calories, fats, carbs, protein))
-
-        conn.commit()
-        flash("Recipe added to your daily totals successfully!", "success")
-    except Exception as e:
-        flash(f"An error occurred: {str(e)}", "danger")
-    finally:
-        conn.close()
-
-    return redirect(url_for('GetRecipeDetails', recipe_id=recipe_id))
-
-
-@app.route('/add_exercise_to_trainee', methods=['POST'])
-def add_exercise_to_trainee():
-    if 'User_ID' not in session:
-        flash("You need to be logged in to perform this action.", "danger")
-        return redirect(url_for('login'))
-
-    user_id = session['User_ID']
-    exercise_id = request.form.get('exercise_id')
-
-    conn = get_db_connection()
-
-    try:
-        # Verify the user is a trainee
-        trainee = conn.execute('SELECT * FROM Trainee WHERE Trainee_ID = ?', (user_id,)).fetchone()
-        if not trainee:
-            flash("You are not authorized to add exercises.", "danger")
-            return redirect(url_for('GetExercises'))
-
-        # Verify the exercise exists
-        exercise = conn.execute('SELECT * FROM Exercise WHERE Exercise_ID = ?', (exercise_id,)).fetchone()
-        if not exercise:
-            flash("Exercise not found.", "danger")
-            return redirect(url_for('GetExercises'))
-
-        today_date = datetime.now().strftime("%Y-%m-%d")
-
-        # Check if the exercise already exists for the trainee on the current date
-        existing_entry = conn.execute(
-            """SELECT * FROM Trainee_Exercises 
-               WHERE Trainee_ID = ? AND Exercise_ID = ? AND DATE(Timestamp) = ?""",
-            (user_id, exercise_id, today_date)
-        ).fetchone()
-
-        if existing_entry:
-            flash("You have already added this exercise for today.", "warning")
-        else:
-            # Insert a new entry
-            conn.execute(
-                """INSERT INTO Trainee_Exercises (Trainee_ID, Timestamp, Trainee_Calories_Burned, Exercise_ID)
-                   VALUES (?, ?, ?, ?)""",
-                (user_id, today_date, 0, exercise_id)  # Set Trainee_Calories_Burned to 0 or calculate if needed
-            )
-            conn.commit()
-            flash("Exercise added successfully!", "success")
-    except Exception as e:
-        flash(f"An error occurred: {str(e)}", "danger")
-    finally:
-        conn.close()
-
-    return redirect(url_for('GetExerciseDetails', exercise_id=exercise_id))
-
-@app.route('/notifications')
-def view_notifications():
-    if 'User_ID' not in session:
-        flash("You need to be logged in to view notifications.", "danger")
-        return redirect(url_for('login'))
-
-    user_id = session['User_ID']
-    conn = get_db_connection()
-    notifications = []
-    try:
-       
-        today_date = datetime.now().strftime("%Y-%m-%d")  
-        print(f"Today's date: {today_date}")
-
-        # Check if the trainee has logged any exercises today
-        has_exercise_today = conn.execute(
-            "SELECT * FROM Trainee_Exercise WHERE Trainee_ID = ? AND Timestamp = ?",
-            (user_id, today_date)
-        ).fetchone()
-        print(f"Exercise records found for today: {has_exercise_today}")
-
-        # Check if the trainee has logged any recipes today
-        has_meals_today = conn.execute(
-            "SELECT * FROM Trainee_Recipes WHERE Trainee_ID = ? AND Timestamp = ?",
-            (user_id, today_date)
-        ).fetchone()
-        print(f"Recipe records found for today: {has_meals_today}")
-
-        # Add notifications if no data is found
-        if not has_exercise_today:
-            notifications.append({
-                'Message': "Don't forget to perform your exercise today!",
-                'Timestamp': today_date
-            })
-
-        if not has_meals_today:
-            notifications.append({
-                'Message': "Don't forget to log your meals today!",
-                'Timestamp': today_date
-            })
-
-    except Exception as e:
-        flash(f"An error occurred: {str(e)}", "danger")
-    finally:
-        conn.close()
-
-    if not notifications:
-        notifications.append({
-            'Message': "No notifications for today. Keep up the good work!",
-            'Timestamp': today_date
-        })
-
-    return render_template('notification.html', notifications=notifications)
-
 
 if __name__ == '__main__':
     app.run(host="127.0.0.1", port=5000, debug=True)
-
-    

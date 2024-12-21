@@ -19,7 +19,7 @@
                     <label for="media">Upload Media:</label>
                     <input type="file" name="media" accept="image/*,video/*" class="custom-file-input">
                 </div>
-                <div>
+                <div class="tags-grid-container">
                     <label for="tags">Select Tags:</label>
                     <div class="tags-grid">
                         {% for interest in interests %}
@@ -32,14 +32,13 @@
                 <button type="submit">Share Post</button>
             </form>
         </div>
-
-        <!--- Recent posts -->
+    
+        <!-- Recent posts -->
         <h3>Recent Posts</h3>
         {% for post_data in posts_with_comments %}
         <div class="post">
             <div class="user-info">
-                <img src="{{ url_for('static', filename='user_images/' + post_data['post']['User_ID'] + '.jpg') }}" alt="User Image" class="user-image">
-                <h4>{{ post_data['post']['Username'] }}</h4> 
+                <h4>{{ post_data['post']['Username'] }}</h4>
             </div>
             <div class="post-content">
                 <p>{{ post_data['post']['Content'] }}</p>
@@ -47,15 +46,20 @@
                 <img src="{{ post_data['post']['Media'] }}" alt="Post Media" class="post-media">
                 {% endif %}
             </div>
-            <button class="toggle-comments-button" onclick="toggleComments({{ post_data['post']['Post_ID'] }})">View Comments</button>
-            <div class="comments" id="comments-{{ post_data['post']['Post_ID'] }}">
+            
+            <!-- Only show View Comments button if there are comments -->
+            {% if post_data['comments']|length > 0 %}
+            <button class="toggle-comments-button" id="button-{{ post_data['post']['Post_ID'] }}" onclick="toggleComments({{ post_data['post']['Post_ID'] }})">View Comments</button>
+            {% endif %}
+            
+            <div class="comments" id="comments-{{ post_data['post']['Post_ID'] }}" style="display: none;">
                 {% for comment in post_data['comments'] %}
                 <div class="comment">
                     <p><strong>{{ comment['Username'] }}:</strong> {{ comment['Content'] }}</p>
                 </div>
                 {% endfor %}
             </div>
-            
+    
             <!-- add comment -->
             <form class="comment-form" method="POST" action="{{ url_for('add_comment', post_id=post_data['post']['Post_ID']) }}">
                 <textarea name="comment_content" required placeholder="Write a comment..."></textarea>
@@ -64,12 +68,20 @@
         </div>
         {% endfor %}
     </div>
-
+    
     <script>
         function toggleComments(postID) {
             const commentsDiv = document.getElementById('comments-' + postID);
-            commentsDiv.style.display = commentsDiv.style.display === 'block' ? 'none' : 'block';
+            const button = document.getElementById('button-' + postID);
+            
+            if (commentsDiv.style.display === 'block') {
+                commentsDiv.style.display = 'none';
+                button.textContent = 'View Comments';  
+            } else {
+                commentsDiv.style.display = 'block';
+                button.textContent = 'Hide Comments';  
+            }
         }
-    </script>
+    </script>    
 </body>
 </html>
