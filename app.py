@@ -576,17 +576,30 @@ def profileCoachRecipes():
     recipes_rows = conn.execute('SELECT * FROM Recipe WHERE Coach_ID = ?', (session["User_ID"],)).fetchall()
     conn.close()
     recipes = []
-    print(recipes_rows)
     for recipe in recipes_rows:
-        print(recipe)
         recipe_img = serve_image("Recipe", recipe[0])
         #                 name        type   ingredients   steps    nutrition      img
         recipes.append([recipe[3], recipe[2], recipe[5], recipe[6], recipe[7], recipe_img])
     pfp = serve_image("User", session["User_ID"])
-    print(recipes)
     return render_template("personal_profile_coach_recipes.html", recipes=recipes, gen_info=gen_info,
                            coach_info=coach_info, pfp=pfp)
 
+
+@app.route('/profileCoachExercises', methods=['GET', 'POST'])
+def profileCoachExercises():
+    conn = get_db_connection()
+    gen_info = conn.execute('SELECT * FROM User WHERE User_ID = ?', (session["User_ID"],)).fetchone()
+    coach_info = conn.execute('SELECT * FROM Coach WHERE Coach_ID = ?', (session["User_ID"],)).fetchone()
+    exercises_rows = conn.execute('SELECT * FROM Exercise WHERE Coach_ID = ?', (session["User_ID"],)).fetchall()
+    conn.close()
+    exercises = []
+    for exercise in exercises_rows:
+        exercise_img = serve_image("Exercise", exercise[0])
+        #                   name        duration   description    muscles      equipment   more info       img
+        exercises.append([exercise[2], exercise[6], exercise[7], exercise[4], exercise[5], exercise[8], exercise_img])
+    pfp = serve_image("User", session["User_ID"])
+    return render_template("personal_profile_coach_exercises.html", exercises=exercises, gen_info=gen_info,
+                           coach_info=coach_info, pfp=pfp)
 
 @app.route('/forgotPW', methods=['GET', 'POST'])
 def forgotPW():
