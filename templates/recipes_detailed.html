@@ -89,6 +89,12 @@
                         </ol>
                         <h4><strong>Nutrition Information:</strong></h4>
                         <p>{{ recipe['Nutrition_Information'] }}</p>
+
+                        <!-- Add Recipe Button -->
+                        <form action="{{ url_for('add_recipe_to_trainee') }}" method="POST">
+                            <input type="hidden" name="recipe_id" value="{{ recipe['Recipe_ID'] }}">
+                            <button type="submit" class="btn btn-primary mt-4">Add to My Nutrition Plan</button>
+                        </form>
                     </div>
                 </div>
             </div>

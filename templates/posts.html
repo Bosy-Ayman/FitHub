@@ -9,42 +9,39 @@
 </head>
 
 <body>
-<div class="container">
-    <!-- Share Post Form -->
-    <div class="share-post-frame">
-        <h2>Share a Post</h2>
-        <form class="post-form" method="POST" action="{{ url_for('posts') }}" enctype="multipart/form-data">
-            <div>
-                <textarea name="content" required placeholder="What's on your mind?" aria-label="Post Content"></textarea>
-            </div>
-            <div>
-                <label for="media" aria-label="Upload Media">Upload Media:</label>
-                <input type="file" name="media" accept="image/*" class="custom-file-input" aria-label="Select Media">
-            </div>
-            <div class="tags-grid-container">
-                <label for="tags" aria-label="Select Tags">Select Tags:</label>
-                <div class="tags-grid">
-                    {% for interest in interests %}
+    <div class="container">
+        <!-- share posts -->
+        <div class="share-post-frame">
+            <h2>Share a Post</h2>
+            <form class="post-form" method="POST" action="{{ url_for('posts') }}" enctype="multipart/form-data">
+                <div>
+                    <textarea name="content" required placeholder="What's on your mind?"></textarea>
+                </div>
+                <div>
+                    <label for="media">Upload Media:</label>
+                    <input type="file" name="media" accept="image/*,video/*" class="custom-file-input">
+                </div>
+                <div class="tags-grid-container">
+                    <label for="tags">Select Tags:</label>
+                    <div class="tags-grid">
+                        {% for interest in interests %}
+
                         <div>
                             <input type="checkbox" name="tags" value="{{ interest['Interest_ID'] }}" aria-label="Tag Selection">
                             {{ interest['Name'] }}
                         </div>
                     {% endfor %}
                 </div>
-            </div>
-            <button type="submit">Share Post</button>
-        </form>
-    </div>
-
-    <!-- Recent Posts Section -->
-    <h3>Recent Posts</h3>
-    {% for post_data in posts_with_comments %}
+                <button type="submit">Share Post</button>
+            </form>
+        </div>
+    
+        <!-- Recent posts -->
+        <h3>Recent Posts</h3>
+        {% for post_data in posts_with_comments %}
         <div class="post">
             <div class="user-info">
-                <!-- User profile picture -->
-                <img src="{{ post_data['post']['Profile_Picture'] }}"
-                     alt="{{ post_data['post']['Username'] }}'s Profile Picture"
-                     class="user-pfp">
+
                 <h4>{{ post_data['post']['Username'] }}</h4>
             </div>
             <div class="post-content">
@@ -59,14 +56,13 @@
                     </div>
                 {% endif %}
             </div>
-
+            
             <!-- Only show View Comments button if there are comments -->
             {% if post_data['comments']|length > 0 %}
-                <button class="toggle-comments-button" id="button-{{ post_data['post']['Post_ID'] }}" onclick="toggleComments({{ post_data['post']['Post_ID'] }})">
-                    View Comments
-                </button>
+            <button class="toggle-comments-button" id="button-{{ post_data['post']['Post_ID'] }}" onclick="toggleComments({{ post_data['post']['Post_ID'] }})">View Comments</button>
             {% endif %}
 
+          
             <div class="comments" id="comments-{{ post_data['post']['Post_ID'] }}" style="display: none;">
                 {% for comment in post_data['comments'] %}
                     <div class="comment">
@@ -74,30 +70,12 @@
                     </div>
                 {% endfor %}
             </div>
+    
+            <!-- add comment -->
 
-            <!-- Add comment form -->
             <form class="comment-form" method="POST" action="{{ url_for('add_comment', post_id=post_data['post']['Post_ID']) }}">
                 <textarea name="comment_content" required placeholder="Write a comment..." aria-label="Write a Comment"></textarea>
                 <button type="submit" class="colored-comment-button">Add Comment</button>
             </form>
         </div>
-    {% endfor %}
-</div>
-
-<script>
-    function toggleComments(postID) {
-        const commentsDiv = document.getElementById('comments-' + postID);
-        const button = document.getElementById('button-' + postID);
-
-        if (commentsDiv.style.display === 'block') {
-            commentsDiv.style.display = 'none';
-            button.textContent = 'View Comments';
-        } else {
-            commentsDiv.style.display = 'block';
-            button.textContent = 'Hide Comments';
-        }
-    }
-</script>
-</body>
-
 </html>
