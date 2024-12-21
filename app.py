@@ -8,10 +8,7 @@ from datetime import datetime
 from flask_mail import Mail, Message
 import numpy as np
 import base64
-import tempfile
-import os
-from werkzeug.utils import secure_filename
-import mimetypes
+
 
 # database path
 DATABASE = 'FitHub_DB.sqlite'
