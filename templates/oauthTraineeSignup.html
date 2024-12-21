@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Trainee</title>
+    {# link to stylesheet #}
+    <link rel="stylesheet" href="{{ url_for('static', filename='traineesignup.css') }}">
+</head>
+<body>
+<div class="form-container">
+    <h1>Trainee</h1>
+    {# Take trainee's information for sign-up #}
+    <form action="/oauthTraineeSignup" method="POST">
+        <p>
+            <input type="text" id="username" name="username" required placeholder="Name">
+            <br>
+            <input type="number" id="age" name="age" required placeholder="Age">
+            <br>
+            <input type="number" id="weight" name="weight" required placeholder="Weight (KG)">
+            <br>
+            <input type="number" step="0.01" id="height" name="height" required placeholder="Height (M) e.g. 1.8">
+            <br><br>
+        <div class="title">
+            Gender: <br></div>
+        <div class="radio">
+            <input type="radio" id="Female" name="gender" value="Female">
+            <label for="Female">Female</label><br>
+            <input type="radio" id="Male" name="gender" value="Male">
+            <label for="Male">Male</label><br>
+            <br>
+            <div class="title">
+                Exercise Level: <br></div>
+            <input type="radio" id="Beginner" name="exercise" value="Beginner">
+            <label for="Beginner">Beginner</label><br>
+            <input type="radio" id="Intermediate" name="exercise" value="Intermediate">
+            <label for="Intermediate">Intermediate</label><br>
+            <input type="radio" id="Advanced" name="exercise" value="Advanced">
+            <label for="Advanced">Advanced</label><br>
+        </div>
+        <br><div class="title">
+        Check all your interests: <br></div>
+        {# loop on all interests sent from backend to show them #}
+        <div class="checkbox-grid">
+            {% for interest in interests %}
+                <input type="checkbox" id="interest-{{ interest[0] }}" name="interests" value="{{ interest[0] }}">
+                <label for="interest-{{ interest[0] }}">{{ interest[1] }}</label>
+            {% endfor %}
+        </div>
+        <br>
+        <input type="text" id="sec_ans" name="sec_ans" required placeholder="{{ security_question }}">
+        <br>
+        {# button to sign-up trainee #}
+        <button type="submit">Sign Up!</button>
+        </p>
+    </form>
+</div>
+</body>
+</html>

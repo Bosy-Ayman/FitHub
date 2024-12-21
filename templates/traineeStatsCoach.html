@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Profile</title>
+    {# link to stylesheet #}
+    <link rel="stylesheet" href="{{ url_for('static', filename='personal_profile_trainee_stats.css') }}">
+</head>
+<body>
+<div class="top-banner">
+    <div class="user-info-wrapper">
+        <img src="{{ pfp }}" alt="Profile photo">
+        <p>
+            {{ gen_info[1] }} <br>
+            Coach<br>
+            Age: {{ gen_info[5] }}<br>
+        </p>
+    </div>
+    <form action="/editProfileCoach">
+        <button type="submit">Edit Profile</button>
+    </form>
+</div>
+<div class="redirections">
+    <form action="/profileCoachInformation">
+        <button type="submit" name="info">Information</button>
+    </form>
+    <form action="/profileCoachPosts">
+        <button type="submit" name="posts">My Posts</button>
+    </form>
+    <form action="/profileCoachTrainees">
+        <button type="submit" name="trainees">My Trainees</button>
+    </form>
+    <form action="/profileCoachRecipes">
+        <button type="submit" name="recipes">My Recipes</button>
+    </form>
+    <form action="/profileCoachExercises">
+        <button type="submit" name="exercises">My Exercises</button>
+    </form>
+</div>
+
+<div class="content">
+    <p>
+    <div class="title">
+        BMI:
+    </div>
+    {{ trainee_info[3] }}<br>
+    <div class="title">
+        Weight:
+    </div>
+    {{ trainee_info[1] }} KG<br>
+    <div class="title">
+        Nutrition information for the day:<br>
+    </div>
+    {% if nutrition_flag %}
+        Calories consumed: {{ nutrition[3] }}<br>
+        Protein consumed: {{ nutrition[5] }}<br>
+        Carbs consumed: {{ nutrition[4] }}<br>
+        Fat consumed: {{ nutrition[2] }}<br>
+    {% endif %}
+    {% if not nutrition_flag %}
+        No nutrition information yet, bet you're starving!
+    {% endif %}
+    <div class="exercising">
+        <div class="time">
+            <div class="title">
+                Total exercise time:
+            </div>
+            <div id="workoutTime" class="mini-time">{{ workout_time }} hours</div>
+        <div class="title">
+            Exercises done: <br>
+        </div>
+        <div class="exercise">
+            {% if exercise_flag %}
+                {% for exercise in exercises %}
+                    <div class="uno-exercise">
+                        <img src="{{ exercise[1] }}" alt="img"> {{ exercise[0] }}<br>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        </div>
+        {% if not exercise_flag %}
+            No exercises done yet, get up & moving!
+        {% endif %}
+        </p>
+    </div>
+</div>
+</body>
+</html>

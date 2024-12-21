@@ -8,123 +8,20 @@ body {
     flex-direction: column;
     justify-content: center;
     align-items: center;
+    color: midnightblue;
 }
 
 /* Container Styling */
 .container {
-    width: 80%;
-    max-width: 800px;
-    background: white;
-    border-radius: 10px;
-    padding: 20px;
-    box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
-    top: 180px;
-    position: relative;
-}
-
-/* Share Post Frame */
-.share-post-frame {
-    border: 1px solid #e0e0e0;
-    border-radius: 10px;
-    padding: 20px;
-    margin-bottom: 20px;
-    background-color: #f9f9ff;
-    box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
-}
-
-/* Post Form */
-.post-form {
     display: flex;
     flex-direction: column;
-    margin-bottom: 20px;
-}
-
-.post-form textarea {
-    width: 97%;
-    height: 80px;
-    margin-bottom: 10px;
-    padding: 10px;
-    border-radius: 6px;
-    border: 1px solid lightgray;
-}
-
-.post-form button {
-    background-color: #6f93e2;
-    color: white;
-    border: none;
-    border-radius: 6px;
-    padding: 10px 20px;
-    cursor: pointer;
-    font-size: 14px;
-    width: auto;
-    align-self: flex-end;
-}
-
-
-input[type="file"] {
-    border: none;
-    cursor: pointer;
-}
-
-input[type="file"]::file-selector-button {
-    background-color: #6f93e2;
-    color: white;
-    border: none;
-    padding: 5px 10px;
-    border-radius: 5px;
-    cursor: pointer;
-}
-
-
-/*Tags Grid */
-.tags-grid-container {
-    display: flex;
-    align-items: center;
-    gap: 50px;
-    margin-top: 7px;
-}
-
-.tags-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+    padding: 20px;
     width: 100%;
-    gap: 5px 7px;
-    margin-bottom: 20px;
-}
-
-.tags-grid label {
-    font-size: 14px;
-    margin-right: 10px;
-}
-
-/* add checkboxes */
-.tags-grid div {
-    display: flex;
     align-items: center;
-    font-size: 14px;
 }
 
-.tags-grid input {
-    margin-right: 5px;
-}
-
-
-
-/* Recent Posts  */
-.post {
-    margin-bottom: 20px;
-    padding: 15px;
-    border: 1px solid #e0e0e0;
-    border-radius: 6px;
-}
-
-.post img {
-    max-width: 100%;
-    border-radius: 6px;
-    margin: 10px 0;
-}
-
-/* User Info  */
+/* User Info */
 .user-info {
     display: flex;
     align-items: center;
@@ -156,8 +53,7 @@ input[type="file"]::file-selector-button {
     width: 100%;
 }
 
-
-/* add Comment */
+/* Add Comment */
 .comment-form {
     display: flex;
     align-items: center;
@@ -258,19 +154,73 @@ button[type="submit"]:hover {
     background-color: #1F2C75;
 }
 
-
+/* Redirection buttons bar */
 .redirections {
     display: flex;
     justify-content: center;
     margin: 0;
     gap: 10px;
-    padding: 10px 0;
+    padding: 10px 0 10px;
     position: fixed;
-    top: 140px;
+    top: 140px;  /* Keep the same top value */
     width: 100%;
     z-index: 999;
+    background-color: white;
 }
 
 .redirections button:hover {
     background-color: #1F2C75;
+}
+
+/* Content section styling */
+.content {
+    margin-top: 180px;  /* Adjust this to ensure space between redirections and content */
+    padding: 20px;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.content img {
+    border-radius: 50%;
+    width: 80px;
+    height: 80px;
+    object-fit: cover;
+    margin-right: 20px;
+}
+
+
+/* Trainee details styling */
+.recipe-details {
+    display: flex;
+    align-items: start;
+    justify-content: space-between; /* Ensures the image and buttons are aligned horizontally */
+    background-color: #f9f9ff;
+    border: 1px solid #e0e0e0;
+    border-radius: 10px;
+    padding: 15px;
+    width: 80%;
+    max-width: 600px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    flex-wrap: nowrap;  /* Prevents wrapping */
+    position: relative;
+    flex-direction: column;
+}
+
+/* Adjust the layout of the trainee's information and image */
+.recipe-details img {
+    border-radius: 50%;
+    width: 80px;
+    height: 80px;
+    object-fit: cover;
+    margin-right: 20px;
+    align-self: center;
+}
+
+.title {
+    font-size: 1.1em;
+    text-decoration-line: underline;
+    margin-bottom: 5px;
+    margin-top: 15px;
 }

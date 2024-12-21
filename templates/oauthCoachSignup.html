@@ -8,25 +8,16 @@
 </head>
 <body>
 <div class="form-container">
-<h1>Coach</h1>
-    <div class="google_signin">
-        <a href="google/">
-            <img id="google"
-                 src="https://www.drupal.org/files/issues/2020-01-26/google_logo.png"
-                 alt="Google"><br>
-        </a>
-    </div>
-{# take coach's information to sign-up' #}
-<form action="/coach" method="POST">
-    <p>
-        <input type="text" id="username" name="username" required placeholder="Name">
-        <br>
-        <input type="email" id="email" name="email" required placeholder="Email">
-        <br>
-        <input type="number" id="age" name="age" required placeholder="Age">
-        <br>
+    <h1>Coach</h1>
+    {# take coach's information to sign-up' #}
+    <form action="/oauthCoachSignup" method="POST">
+        <p>
+            <input type="text" id="username" name="username" required placeholder="Name">
+            <br>
+            <input type="number" id="age" name="age" required placeholder="Age">
+            <br>
         <div class="title">
-        Gender: <br>
+            Gender: <br>
         </div>
         <div class="radio">
             <input type="radio" id="Female" name="gender" value="Female">
@@ -38,14 +29,12 @@
         <div class="title">
             Check all your interests:
         </div>
-            <div class="checkbox-grid">
+        <div class="checkbox-grid">
             {% for interest in interests %}
-                    <input type="checkbox" id="interest-{{ interest[0] }}" name="interests" value="{{ interest[0] }}">
-                    <label for="interest-{{ interest[0] }}">{{ interest[1] }}</label>
+                <input type="checkbox" id="interest-{{ interest[0] }}" name="interests" value="{{ interest[0] }}">
+                <label for="interest-{{ interest[0] }}">{{ interest[1] }}</label>
             {% endfor %}
-            </div>
-        <br>
-        <input type="password" id="password" name="password" required placeholder="Password">
+        </div>
         <br>
         <input type="text" id="sec_ans" name="sec_ans" required placeholder="{{ security_question }}">
         <br>
@@ -57,8 +46,8 @@
         <br>
         {# button to sign-up #}
         <button type="submit">Sign Up!</button>
-    </p>
-</form>
+        </p>
+    </form>
 </div>
 </body>
 </html>

@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Share Post</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='posts.css') }}">
 </head>
+
 <body>
     <div class="container">
         <!-- share posts -->
@@ -23,11 +25,12 @@
                     <label for="tags">Select Tags:</label>
                     <div class="tags-grid">
                         {% for interest in interests %}
+
                         <div>
-                            <input type="checkbox" name="tags" value="{{ interest['Interest_ID'] }}"> {{ interest['Name'] }}
+                            <input type="checkbox" name="tags" value="{{ interest['Interest_ID'] }}" aria-label="Tag Selection">
+                            {{ interest['Name'] }}
                         </div>
-                        {% endfor %}
-                    </div>
+                    {% endfor %}
                 </div>
                 <button type="submit">Share Post</button>
             </form>
@@ -38,12 +41,19 @@
         {% for post_data in posts_with_comments %}
         <div class="post">
             <div class="user-info">
+
                 <h4>{{ post_data['post']['Username'] }}</h4>
             </div>
             <div class="post-content">
                 <p>{{ post_data['post']['Content'] }}</p>
                 {% if post_data['post']['Media'] %}
-                <img src="{{ post_data['post']['Media'] }}" alt="Post Media" class="post-media">
+                    <div class="post-media">
+                        <!-- Post media  -->
+                        <img src="{{ post_data['post']['Media'] }}"
+                             alt="Post Media"
+                             class="post-media-image"
+                             aria-label="Post Image">
+                    </div>
                 {% endif %}
             </div>
             
@@ -51,37 +61,21 @@
             {% if post_data['comments']|length > 0 %}
             <button class="toggle-comments-button" id="button-{{ post_data['post']['Post_ID'] }}" onclick="toggleComments({{ post_data['post']['Post_ID'] }})">View Comments</button>
             {% endif %}
-            
+
+          
             <div class="comments" id="comments-{{ post_data['post']['Post_ID'] }}" style="display: none;">
                 {% for comment in post_data['comments'] %}
-                <div class="comment">
-                    <p><strong>{{ comment['Username'] }}:</strong> {{ comment['Content'] }}</p>
-                </div>
+                    <div class="comment">
+                        <p><strong>{{ comment['Username'] }}:</strong> {{ comment['Content'] }}</p>
+                    </div>
                 {% endfor %}
             </div>
     
             <!-- add comment -->
+
             <form class="comment-form" method="POST" action="{{ url_for('add_comment', post_id=post_data['post']['Post_ID']) }}">
-                <textarea name="comment_content" required placeholder="Write a comment..."></textarea>
+                <textarea name="comment_content" required placeholder="Write a comment..." aria-label="Write a Comment"></textarea>
                 <button type="submit" class="colored-comment-button">Add Comment</button>
             </form>
         </div>
-        {% endfor %}
-    </div>
-    
-    <script>
-        function toggleComments(postID) {
-            const commentsDiv = document.getElementById('comments-' + postID);
-            const button = document.getElementById('button-' + postID);
-            
-            if (commentsDiv.style.display === 'block') {
-                commentsDiv.style.display = 'none';
-                button.textContent = 'View Comments';  
-            } else {
-                commentsDiv.style.display = 'block';
-                button.textContent = 'Hide Comments';  
-            }
-        }
-    </script>    
-</body>
 </html>

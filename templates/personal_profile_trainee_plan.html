@@ -4,19 +4,21 @@
     <meta charset="UTF-8">
     <title>Profile</title>
     {# link to stylesheet #}
-    <link rel="stylesheet" href="{{ url_for('static', filename='personal_profile_trainee_stats.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='personal_profile_trainee_plan.css') }}">
 </head>
 <body>
-<img src="{{ pfp }}" alt="Profile photo">
 <div class="top-banner">
-    <p>
-        {{ gen_info[1] }} <br>
-        Age: {{ gen_info[5] }}<br>
-        Height: {{ trainee_info[3] }} m
-    <form method="post">
+    <div class="user-info-wrapper">
+        <img src="{{ pfp }}" alt="Profile photo">
+        <p>
+            {{ gen_info[1] }} <br>
+            Age: {{ gen_info[5] }}<br>
+            Height: {{ trainee_info[3] }} m
+        </p>
+    </div>
+    <form action="/editProfileTrainee">
         <button type="submit">Edit Profile</button>
     </form>
-    </p>
 </div>
 <div class="redirections">
     <form action="/profileTraineeStats">
@@ -30,5 +32,26 @@
     </form>
 </div>
 
+<div class="content">
+<h3>Today's exercises:</h3>
+<div class="congrats">
+    <form action="/saveAllPlan">
+        <button type="submit">Finished Entire Plan!</button>
+    </form>
+</div>
+    <p>
+        {% for exercise in exercises %}
+            <div class="exercise">
+            <div class="exercise-data">
+                <img src="{{ exercise[0] }}" alt="img"> {{ exercise[1] }}<br> {{ exercise[2] }} seconds<br>
+            </div>
+                <form method="POST" action="/saveExercise">
+                    <input type="hidden" name="saveExercise" value="{{exercise[3]}}">
+                    <button type="submit" class="saveExercise">Exercise Done :)</button>
+                </form>
+            </div>
+        {% endfor %}
+    </p>
+</div>
 </body>
 </html>

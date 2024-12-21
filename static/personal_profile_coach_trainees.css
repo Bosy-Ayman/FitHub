@@ -1,0 +1,140 @@
+body {
+    margin: 0;
+    padding: 0;
+    background-color: white;
+    font-family: sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    color: midnightblue;
+}
+
+.user-info-wrapper {
+    display: flex;
+    align-items: center;
+}
+
+.top-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px;
+    color: white;
+    background: linear-gradient(to bottom, cornflowerblue, deepskyblue);
+    position: fixed;
+    top: 0;
+    width: 100%;
+    z-index: 1000;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.top-banner p {
+    margin: 0;
+    font-size: 0.9em;
+    line-height: 1.5;
+}
+
+.top-banner img {
+    border-radius: 50%;
+    width: 100px;
+    height: 100px;
+    object-fit: cover;
+    margin-right: 20px;
+    margin-left: 30px;
+}
+
+.top-banner form {
+    margin-top: 10px;
+}
+
+.top-banner .user-info {
+    flex-grow: 1;
+}
+
+.top-banner button[type="submit"] {
+    background-color: #415df6;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    padding: 10px 15px;
+    font-size: 1em;
+    cursor: pointer;
+    margin-right: 30px;
+}
+
+button[type="submit"] {
+    background-color: #405cf5;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    padding: 10px 15px;
+    font-size: 1em;
+    cursor: pointer;
+}
+
+button[type="submit"]:hover {
+    background-color: #1F2C75;
+}
+
+/* Redirection buttons bar */
+.redirections {
+    display: flex;
+    justify-content: center;
+    margin: 0;
+    gap: 10px;
+    padding: 10px 0 10px;
+    position: fixed;
+    top: 140px;  /* Keep the same top value */
+    width: 100%;
+    z-index: 999;
+    background-color: white;
+}
+
+.redirections button:hover {
+    background-color: #1F2C75;
+}
+
+/* Content section styling */
+.content {
+    margin-top: 180px;  /* Adjust this to ensure space between redirections and content */
+    padding: 20px;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.content img {
+    border-radius: 50%;
+    width: 80px;
+    height: 80px;
+    object-fit: cover;
+    margin-right: 20px;
+}
+
+/* Trainee details styling */
+.trainee-details {
+    display: flex;
+    align-items: center;
+    justify-content: space-between; /* Ensures the image and buttons are aligned horizontally */
+    background-color: #f9f9ff;
+    border: 1px solid #e0e0e0;
+    border-radius: 10px;
+    padding: 15px;
+    width: 80%;
+    max-width: 600px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    flex-wrap: nowrap;  /* Prevents wrapping */
+    position: relative;
+}
+
+/* Adjust the layout of the trainee's information and image */
+.trainee-details img {
+    border-radius: 50%;
+    width: 80px;
+    height: 80px;
+    object-fit: cover;
+    margin-right: 20px;
+}

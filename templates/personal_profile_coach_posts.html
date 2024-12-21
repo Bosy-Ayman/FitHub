@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Profile</title>
+    {# link to stylesheet #}
+    <link rel="stylesheet" href="{{ url_for('static', filename='personal_profile_coach_posts.css') }}">
+</head>
+<body>
+<div class="top-banner">
+    <div class="user-info-wrapper">
+        <img src="{{ pfp }}" alt="Profile photo">
+        <p>
+            {{ gen_info[1] }} <br>
+            Coach<br>
+            Age: {{ gen_info[5] }}<br>
+        </p>
+    </div>
+    <form action="/editProfileCoach">
+        <button type="submit">Edit Profile</button>
+    </form>
+</div>
+<div class="redirections">
+    <form action="/profileCoachInformation">
+        <button type="submit" name="info">Information</button>
+    </form>
+    <form action="/profileCoachPosts">
+        <button type="submit" name="posts">My Posts</button>
+    </form>
+    <form action="/profileCoachTrainees">
+        <button type="submit" name="trainees">My Trainees</button>
+    </form>
+    <form action="/profileCoachRecipes">
+        <button type="submit" name="recipes">My Recipes</button>
+    </form>
+    <form action="/profileCoachExercises">
+        <button type="submit" name="exercises">My Exercises</button>
+    </form>
+</div>
+
+<div class="container">
+    <h3>My Posts</h3>
+    {% for post_data in posts_with_comments %}
+        <div class="post">
+            <div class="user-info">
+                <img src="{{ post_data['post']['pfp'] }}" alt="User Image" class="user-image">
+                <h4>{{ post_data['post']['Username'] }}</h4>
+            </div>
+            <div class="post-content">
+                <p>{{ post_data['post']['Content'] }}</p>
+                {% if post_data['post']['Media'] %}
+                    <img src="{{ post_data['post']['Media'] }}" alt="Post Media" class="post-media">
+                {% endif %}
+            </div>
+            {% if post_data['comments']|length > 0 %}
+                <button class="toggle-comments-button" id="button-{{ post_data['post']['Post_ID'] }}" onclick="toggleComments({{ post_data['post']['Post_ID'] }})">View Comments</button>
+            {% endif %}
+            <div class="comments" id="comments-{{ post_data['post']['Post_ID'] }}">
+                {% for comment in post_data['comments'] %}
+                    <div class="comment">
+                        <p><strong>{{ comment['Username'] }}:</strong> {{ comment['Content'] }}</p>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    {% endfor %}
+</div>
+<script>
+    function toggleComments(postID) {
+        const commentsDiv = document.getElementById('comments-' + postID);
+        const button = document.getElementById('button-' + postID);
+
+        if (commentsDiv.style.display === 'block') {
+            commentsDiv.style.display = 'none';
+            button.textContent = 'View Comments';
+        } else {
+            commentsDiv.style.display = 'block';
+            button.textContent = 'Hide Comments';
+        }
+    }
+</script>
+</body>
+</html>

@@ -7,16 +7,18 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='personal_profile_trainee_stats.css') }}">
 </head>
 <body>
-<img src="{{ pfp }}" alt="Profile photo">
 <div class="top-banner">
-    <p>
-        {{ gen_info[1] }} <br>
-        Age: {{ gen_info[5] }}<br>
-        Height: {{ trainee_info[3] }} m
-        <form method="post">
-            <button type="submit">Edit Profile</button>
-        </form>
-    </p>
+    <div class="user-info-wrapper">
+    <img src="{{ pfp }}" alt="Profile photo">
+        <p>
+            {{ gen_info[1] }} <br>
+            Age: {{ gen_info[5] }}<br>
+            Height: {{ trainee_info[2] }} m
+        </p>
+    </div>
+            <form action="/editProfileTrainee">
+                <button type="submit">Edit Profile</button>
+            </form>
 </div>
 <div class="redirections">
     <form action="/profileTraineeStats">
@@ -31,12 +33,119 @@
 </div>
 <div class="content">
     <p>
-        {# workout #}
-        {# calories #}
-        BMI: {{ trainee_info[4] }}<br>
-        Weight: {{ trainee_info[2] }}<br>
-    </p>
+        <div class="title">
+            BMI: 
+        </div>
+        {{ trainee_info[3] }}<br>
+        <div class="title">
+            Weight: 
+        </div>
+        {{ trainee_info[1] }} KG<br>
+        <div class="title">
+            Nutrition information for the day:<br>
+        </div>
+        {% if nutrition_flag %}
+            Calories consumed: {{ nutrition[3] }}<br>
+            Protein consumed: {{ nutrition[5] }}<br>
+            Carbs consumed: {{ nutrition[4] }}<br>
+            Fat consumed: {{ nutrition[2] }}<br>
+        {% endif %} 
+        {% if not nutrition_flag %}
+            No nutrition information yet, bet you're starving!
+        {% endif %}
+    <div class="exercising">
+            <div class="time">
+                    <div class="title">
+                        Total exercise time: 
+                    </div>
+                    <div id="workoutTime" class="mini-time">{{ workout_time }} hours</div>
+                    <div class="exercise_time_btn">
+                        <button type="submit" id="openModal">Add Exercise Time</button>
+                    </div>
+            </div>
+            <div class="title">
+                Exercises done: <br>
+            </div>
+            <div class="exercise">
+                    {% if exercise_flag %}
+                        {% for exercise in exercises %}
+                            <div class="uno-exercise">
+                                <img src="{{ exercise[1] }}" alt="img"> {{ exercise[0] }}<br>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+            </div>
+            {% if not exercise_flag %}
+                No exercises done yet, get up & moving!
+            {% endif %}
+        </p>
+    </div>
+    {# popup window to take the workout time #}
+    <div id="myModal" class="modal">
+        <div class="modal-content">
+            <span class="close" id="closeModal">&times;</span>
+            <h2>Enter Exercise time in minutes</h2>
+            <input type="number" id="numberInput" placeholder="Enter time">
+            <br><br>
+            <button id="submitNumber">Add</button>
+        </div>
+    </div>
 </div>
 
+{# popup script #}
+<script>
+    const modal = document.getElementById("myModal");
+    const openModalButton = document.getElementById("openModal");
+    const closeModalButton = document.getElementById("closeModal");
+    const submitButton = document.getElementById("submitNumber");
+    const numberInput = document.getElementById("numberInput");
+
+    openModalButton.addEventListener("click", () => {
+        modal.style.display = "flex";
+    });
+
+    closeModalButton.addEventListener("click", () => {
+        modal.style.display = "none";
+    });
+
+    submitButton.addEventListener("click", () => {
+        const number = numberInput.value;
+
+        if (number) {
+            fetch('/profileTraineeStats', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ number: number })
+            })
+                .then(response => {
+                    if (response.ok) {
+                        return response.json();
+                    } else {
+                        throw new Error(`Error: ${response.status} - ${response.statusText}`);
+                    }
+                })
+                .then(data => {
+                    const workoutTimeElement = document.getElementById('workoutTime');
+                    workoutTimeElement.innerText = data.new_workout_time + ' hours';
+                    modal.style.display = "none";
+                    numberInput.value = "";
+                })
+                .catch(error => {
+                    alert(`Error: ${error.message}`);
+                });
+        } else {
+            alert("Please enter a valid number.");
+        }
+    });
+
+    window.addEventListener("click", (event) => {
+        if (event.target === modal) {
+            modal.style.display = "none";
+        }
+    });
+
+</script>
 </body>
 </html>

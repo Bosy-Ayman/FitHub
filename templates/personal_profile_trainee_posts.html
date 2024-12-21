@@ -4,19 +4,21 @@
     <meta charset="UTF-8">
     <title>Profile</title>
     {# link to stylesheet #}
-    <link rel="stylesheet" href="{{ url_for('static', filename='personal_profile_trainee_posts') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='personal_profile_trainee_posts.css') }}">
 </head>
 <body>
-<img src="{{ pfp }}" alt="Profile photo">
 <div class="top-banner">
+    <div class="user-info">
+    <img src="{{ pfp }}" alt="Profile photo">
     <p>
         {{ gen_info[1] }} <br>
         Age: {{ gen_info[5] }}<br>
         Height: {{ trainee_info[3] }} m
+    </p>
+    </div>
     <form method="post">
         <button type="submit">Edit Profile</button>
     </form>
-    </p>
 </div>
 <div class="redirections">
     <form action="/profileTraineeStats">
@@ -29,12 +31,13 @@
         <button type="submit" name="plan">My Plan</button>
     </form>
 </div>
+
 <div class="container">
 <h3>My Posts</h3>
 {% for post_data in posts_with_comments %}
 <div class="post">
     <div class="user-info">
-        <img src="{{ url_for('static', filename='user_images/' + post_data['post']['User_ID'] + '.jpg') }}" alt="User Image" class="user-image">
+        <img src="{{ post_data['post']['pfp'] }}" alt="User Image" class="user-image">
         <h4>{{ post_data['post']['Username'] }}</h4>
     </div>
     <div class="post-content">

@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Profile Edit</title>
+    {# link to stylesheet #}
+    <link rel="stylesheet" href="{{ url_for('static', filename='edit_profile_trainee.css') }}">
+</head>
+<body>
+<div class="form-container">
+    <form method="post" enctype="multipart/form-data">
+        <label for="pfp">Profile Picture:</label><br>
+        <input type="file" id="pfp" name="pfp"><br>
+        <label for="username">Username:</label><br>
+        <input type="text" id="username" name="username" value="{{ gen_info[1] }}"><br>
+        <label for="password">Password:</label><br>
+        <input type="password" id="password" name="password" value="{{ gen_info[3] }}"><br>
+        <label for="age">Age:</label><br>
+        <input type="text" id="age" name="age" value="{{ gen_info[5] }}"><br>
+        <div class="title">
+            Interests:
+        </div>
+        <div class="checkbox-grid">
+            {% for interest in interests %}
+                <input type="checkbox" id="interest-{{ interest[0] }}" name="interests" value="{{ interest[0] }}">
+                <label for="interest-{{ interest[0] }}">{{ interest[1] }}</label>
+            {% endfor %}
+        </div>
+        <br>
+        <label for="expYears">Experience years:</label><br>
+        <input type="number" id="expYears" name="expYears" value="{{ coach_info[3] }}" >
+        <br>
+        <label for="expDesc">Experience description:</label><br>
+        <input type="text" id="expDesc" name="expDesc" value="{{ coach_info[2] }}">
+        <br>
+        <label for="certificates">Certificates:</label><br>
+        <input type="text" id="certificates" name="certificates" value="{{ coach_info[4] }}">
+        <br>
+
+        <button type="submit">Save Changes</button>
+    </form>
+</div>
+</body>
+</html>
