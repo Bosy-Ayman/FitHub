@@ -42,16 +42,10 @@
     {% for trainee in trainees %}
         <div class="trainee-details">
     	<img src="{{ trainee[1] }}" alt="trainee pfp"> {{ trainee[0] }}
-            <div class="buttons">
-                <form method="POST" action="/chats">
-                    <input type="hidden" name="trainee_id" value="{{ trainee[2] }}">
-                    <button type="submit">Chat</button>
-                </form>
                 <form method="POST" action="/traineeStatsCoach">
                     <input type="hidden" name="trainee_id" value="{{ trainee[2] }}">
                     <button type="submit">Statistics</button>
                 </form>
-            </div>
         </div>
     {% endfor %}
     

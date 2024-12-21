@@ -517,8 +517,6 @@ def profileCoachTrainees():
     for trainee in trainees_collected:
         img = serve_image("User", trainee[0])
         trainee_info = [trainee[8], img, trainee[0]]
-        print(trainee[7])
-        print(img)
         trainees.append(trainee_info)
     pfp = serve_image("User", session["User_ID"])
     return render_template("personal_profile_coach_trainees.html", trainees=trainees, gen_info=gen_info, coach_info=coach_info, pfp=pfp)
@@ -600,6 +598,7 @@ def profileCoachExercises():
     pfp = serve_image("User", session["User_ID"])
     return render_template("personal_profile_coach_exercises.html", exercises=exercises, gen_info=gen_info,
                            coach_info=coach_info, pfp=pfp)
+
 
 @app.route('/forgotPW', methods=['GET', 'POST'])
 def forgotPW():
