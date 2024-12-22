@@ -2,7 +2,7 @@ services:
   web:
     build: .
     ports:
-      - "5000:5000"
+      - "4000:4000"
     container_name: fithub
     working_dir: /app
     command: python app.py 

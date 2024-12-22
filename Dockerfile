@@ -6,6 +6,6 @@ COPY . .
 
 RUN pip install flask numpy Authlib flask-mail requests flask_bcrypt
 
-EXPOSE 5000
+EXPOSE 4000
 
 CMD [ "python", "app.py" ]

@@ -22,7 +22,7 @@ app.secret_key = 'suchasecurekey'
 bcrypt = Bcrypt(app)
 
 # oauth config
-app.config['SERVER_NAME'] = '127.0.0.1:5000'
+app.config['SERVER_NAME'] = '127.0.0.1:4000'
 oauth = OAuth(app)
 
 GOOGLE_CLIENT_ID = "182040310616-60khtr7cc6mp3ji72ceut8tsivccmrui.apps.googleusercontent.com"
@@ -1797,5 +1797,6 @@ def view_notifications():
     return render_template('notification.html', notifications=notifications)
 
 
-if __name__ == '__main__':
-    app.run(host="127.0.0.1", port=5000, debug=True)
+if __name__ == "__main__":
+    app.run(debug=True, host="0.0.0.0", port=4000)
+
