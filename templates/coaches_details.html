@@ -49,15 +49,21 @@
                 {% for coach in coaches %}
                 <div class="col-xl-4 col-lg-6 col-md-6 wow fadeInUp" data-wow-delay="0.3s">
                     <div class="coach-item">
+                        <!-- Coach Image -->
+                        <div class="mb-3">
+                            <img src="{{ coach['Media'] }}" alt="Coach Image" class="img-fluid rounded">
+                        </div>
+                        <!-- Coach Details -->
                         <div class="bg-light p-4 rounded">
-                            <h5 class="mb-3">Coach ID: {{ coach['Coach_ID'] }}</h5>
+                            <h5 class="mb-3">{{ coach['Name'] }}</h5> <!-- Display coach name -->
                             <p><strong>Description:</strong> {{ coach['Description'] }}</p>
                             <p><strong>Experience:</strong> {{ coach['Experience'] }} </p>
-                            <p><strong>Certificates:</strong> {{ coach['Certificates'] }}</p>
                         </div>
                     </div>
                 </div>
                 {% endfor %}
+            </div>
+            
             </div>
         </div>
     </div>

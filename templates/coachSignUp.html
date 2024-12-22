@@ -47,13 +47,12 @@
         <br>
         <input type="password" id="password" name="password" required placeholder="Password">
         <br>
-        <input type="text" id="sec_ans" name="sec_ans" required placeholder="{{ security_question }}">
-        <br>
         <input type="number" id="expYears" name="expYears" required placeholder="Years of Experience">
         <br>
         <input type="text" id="expDesc" name="expDesc" required placeholder="Write about your coaching experiences">
-        <br>
-        <input type="text" id="certificates" name="certificates" placeholder="Provide your certificates links, separated by a space (e.g. 'cert1.com cert2.com')">
+        <br><br>
+        <label for="certificates">Upload Certificates</label> <br>
+        <input type="file" id="certificates" name="certificates">
         <br>
         {# button to sign-up #}
         <button type="submit">Sign Up!</button>

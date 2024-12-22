@@ -44,11 +44,9 @@
     <span>Cannot Login?</span>
     <div class="button-container">
         {# if they forgot their password #}
-        <form method="POST" action="/forgotPW">
-            <button type="submit" class="forgot">Forgot Password?</button>
-        </form>
+        <button type="button" class="forgot">Forgot Password?</button>
         {# if they don't have an account yet #}
-        <form method="POST" action="/signUp">
+        <form method="POST" action="/signUp" style="margin: 0;">
             <button type="submit" class="signup">Sign Up!</button>
         </form>
     </div>
