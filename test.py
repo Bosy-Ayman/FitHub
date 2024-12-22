@@ -3,7 +3,7 @@ from flask import Flask, render_template, request, session, flash, redirect, url
 import sqlite3
 import random
 from datetime import datetime
-
+import base64
 
 # database path
 DATABASE = 'FitHub_DB.sqlite'
@@ -406,28 +406,23 @@ def add_comment(post_id):
     return redirect(url_for('login'))
 
 
-
-
-
-
-#Coach can add new recipes
 @app.route('/add_recipe', methods=['GET', 'POST'])
 def add_recipe():
     if 'User_ID' not in session:
         return redirect(url_for('login'))
 
     User_ID = str(session['User_ID'])
-    
+
     if request.method == 'POST':
-        # Get form data
         recipe_name = request.form.get('Recipe_Name')
         meal_type = request.form.get('Meal_Type')
         nutrition_info = request.form.get('Nutrition_Information')
         media = request.files.get('Media')
         steps = request.form.get('Steps')
         ingredients = request.form.get('Ingredients')
-        if not (recipe_name and meal_type and nutrition_info and media and steps and ingredients):
-            flash("All fields are required!", 'error')
+
+        if not (recipe_name and meal_type and nutrition_info and steps and ingredients):
+            flash("All fields are required except Media!", 'error')
             return redirect(url_for('add_recipe'))
 
         try:
@@ -437,43 +432,63 @@ def add_recipe():
             # Generate a new Recipe_ID
             cursor.execute("SELECT MAX(CAST(Recipe_ID AS INTEGER)) FROM Recipe")
             max_id = cursor.fetchone()[0]
-            new_recipe_id = str((max_id + 1) if max_id is not None else 1)  # Handle case where table is empty
-            print(f"Generated new Recipe_ID: {new_recipe_id}")
-            temp_path = f"uploads/{media.filename}"
-            media.save(temp_path)
+            new_recipe_id = str((max_id + 1) if max_id is not None else 1)
 
-            # Upload media file and get its unique identifier
-            drive_file_id = upload(temp_path, media.filename)
-            if not drive_file_id:
-                os.remove(temp_path) 
-                flash("Failed to upload media file. Please try again.", 'error')
-                return redirect(url_for('add_recipe'))
-            
-            os.remove(temp_path)
-            print(f"Uploaded media file ID: {drive_file_id}")
+            media_binary = None
+            if media:
+                media_binary = media.read()  # Save media as binary
 
-            # Insert the new recipe details into the database
-            cursor.execute("""
+            cursor.execute(
+                """
                 INSERT INTO Recipe (Recipe_ID, Coach_ID, Recipe_Name, Meal_Type, Nutrition_Information, Media, Steps, Ingredients)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """, (new_recipe_id, User_ID, recipe_name, meal_type, nutrition_info, drive_file_id, steps, ingredients))
-
+                """,
+                (new_recipe_id, User_ID, recipe_name, meal_type, nutrition_info, media_binary, steps, ingredients)
+            )
             conn.commit()
             conn.close()
 
-            print(f"New Recipe added successfully with ID: {new_recipe_id}")
             flash(f"Recipe added successfully with ID: {new_recipe_id}!", 'success')
             return redirect(url_for('GetRecipes'))
 
         except Exception as e:
-            print(f"Error occurred while adding recipe: {str(e)}")
             flash(f"An error occurred: {str(e)}. Please try again later.", 'error')
             return redirect(url_for('add_recipe'))
 
     return render_template('add_recipe.html')
 
+@app.route('/recipes/<int:recipe_id>', methods=['GET'])
+def GetRecipeDetails(recipe_id):
+    conn = get_db_connection()
+    conn.row_factory = sqlite3.Row  # Access rows as dictionaries
+    cursor = conn.cursor()
+    user_id = session['User_ID']
 
-#Show all recipes to user
+    # Fetch the recipe details
+    cursor.execute("SELECT * FROM Recipe WHERE Recipe_ID = ?", (str(recipe_id),))
+    recipe = cursor.fetchone()
+
+    if recipe is None:
+        conn.close()
+        app.logger.error(f"Recipe ID {recipe_id} not found in the database.")
+        return render_template('error.html', message="Recipe not found"), 404
+
+    # Prepare the recipe data
+    recipe_data = {
+        'Recipe_ID': recipe['Recipe_ID'],
+        'Recipe_Name': recipe['Recipe_Name'],
+        'Meal_Type': recipe['Meal_Type'],
+        'Media': recipe['Media'] if recipe['Media'] else url_for('static', filename='images/images.jpeg'),
+        'Ingredients': recipe['Ingredients'],
+        'Steps': recipe['Steps'],
+        'Nutrition_Information': recipe['Nutrition_Information']
+    }
+
+    conn.close()
+    app.logger.info(f"Recipe details fetched successfully for ID {recipe_id}.")
+    return render_template('recipes_detailed.html', recipe=recipe_data)
+#Show coach details for trainee so that he can add the suitable coach for him
+
 @app.route('/recipes', methods=['GET'])
 def GetRecipes():
     conn = get_db_connection()
@@ -481,78 +496,143 @@ def GetRecipes():
     cursor.execute("SELECT * FROM Recipe")
     recipes = cursor.fetchall()
 
-    recipes_data = [{
-        'Recipe_ID': str(row[0]),
-        'Recipe_Name': row[3],
-        'Meal_Type': row[2],
-        'Media': row[4],
-        'Ingredients': row[5],
-        'Steps': row[6],
-        'Nutrition_Information': row[7]
-    } for row in recipes]
+    # Extracting and preparing recipe data
+    recipes_data = []
+    for row in recipes:
+        # Check if the image binary data exists
+        if row['Media']:
+            # Convert binary image data to a base64-encoded string
+            media_data = base64.b64encode(row['Media']).decode('utf-8')
+            media_url = f"data:image/jpeg;base64,{media_data}"
+        else:
+            # Use the default placeholder image
+            media_url = url_for('static', filename='images/default_recipes.png')
 
+        recipes_data.append({
+            'Recipe_ID': str(row['Recipe_ID']),
+            'Recipe_Name': row['Recipe_Name'],
+            'Meal_Type': row['Meal_Type'],
+            'Media': media_url,
+            'Ingredients': row['Ingredients'],
+            'Steps': row['Steps'],
+            'Nutrition_Information': row['Nutrition_Information']
+        })
+
+    conn.close()
     return render_template('recipes.html', recipes=recipes_data)
 
-
-#Show recipes details when the user click on more details 
-@app.route('/recipes/<recipe_id>', methods=['GET'])
-def GetRecipeDetails(recipe_id):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-
-    cursor.execute("SELECT * FROM Recipe WHERE Recipe_ID = ?", (recipe_id,))
-    recipe = cursor.fetchone()
-
-    if recipe is None:
-        return "Recipe not found", 404
-
-    recipe_data = {
-        'Recipe_ID': str(recipe[0]),
-        'Recipe_Name': recipe[3],
-        'Meal_Type': recipe[2],
-        'Media': recipe[4],
-        'Ingredients': recipe[5],
-        'Steps': recipe[6],
-        'Nutrition_Information': recipe[7]
-    }
-
-    return render_template('recipes_detailed.html', recipe=recipe_data)
-
-
-#Show coach details for trainee so that he can add the suitable coach for him
-@app.route('/coaches', methods=['GET'])
-def GetCoach():
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    query = """
-    SELECT  Coach_ID, Verified, Description, Experience, Certificates
-    FROM Coach
-    """
-    cursor.execute(query)
-    result = cursor.fetchall()
-    coaches_data = [
-        {"Coach_ID": row[0], "Verified": row[1], "Description": row[2], "Experience": row[3], "Certificates": row[4],
-         } for row in result]
-
-    return render_template('coaches_details.html', coaches=coaches_data)
-
-
 #show exercises for users
+
 @app.route('/exercises', methods=['GET'])
 def GetExercises():
     try:
         conn = get_db_connection()
+        conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM Exercise")
-        Exercises_data = [dict(row) for row in cursor.fetchall()]
+        cursor.execute("SELECT Exercise_ID, Name, Media, Duration, Equipment, Muscles_Targeted FROM Exercise")
+        
+        exercises = cursor.fetchall()
         conn.close()
-        # Filter out entries with None Exercise_ID
-        valid_exercises = [exercise for exercise in Exercises_data if exercise['Exercise_ID'] is not None]
 
-        return render_template('exercises.html', Exercises=valid_exercises)
+        # Convert binary media to Base64 string
+        exercises_data = []
+        for exercise in exercises:
+            media_base64 = None
+            if exercise["Media"]:
+                media_base64 = base64.b64encode(exercise["Media"]).decode('utf-8')
+                media_base64 = f"data:image/jpeg;base64,{media_base64}" 
+
+            exercises_data.append({
+                "Exercise_ID": exercise["Exercise_ID"],
+                "Name": exercise["Name"],
+                "Media": media_base64,
+                "Duration": exercise["Duration"],
+                "Equipment": exercise["Equipment"],
+                "Muscles_Targeted": exercise["Muscles_Targeted"]
+            })
+
+        return render_template('exercises.html', Exercises=exercises_data)
     except Exception as e:
         print(f"Error fetching exercises: {e}")
         return "Error fetching exercises", 500
+
+
+
+@app.route('/add_recipe_to_trainee', methods=['POST'])
+def add_recipe_to_trainee():
+    if 'User_ID' not in session:
+        flash("You need to be logged in to perform this action.", "danger")
+        return redirect(url_for('login'))
+    user_id = session['User_ID']
+    recipe_id = request.form.get('recipe_id')
+    conn = get_db_connection()
+
+    try:
+        # Verify if the user is a trainee
+        trainee = conn.execute('SELECT * FROM Trainee WHERE Trainee_ID = ?', (user_id,)).fetchone()
+        if not trainee:
+            flash("You are not authorized to add recipes.", "danger")
+            return redirect(url_for('GetRecipes'))
+
+        # Fetch recipe's nutritional information
+        recipe = conn.execute('SELECT Nutrition_Information FROM Recipe WHERE Recipe_ID = ?', (recipe_id,)).fetchone()
+        if not recipe:
+            flash("Recipe not found.", "danger")
+            return redirect(url_for('GetRecipes'))
+
+        # Parse nutritional information
+        nutrition_parts = {
+            item.split(':')[0].strip(): float(item.split(':')[1].strip().replace('g', '').strip())
+            for item in recipe['Nutrition_Information'].split(',')
+        }
+
+        calories = nutrition_parts.get('Calories', 0)
+        fats = nutrition_parts.get('Fat', 0)
+        carbs = nutrition_parts.get('Carbs', 0)
+        protein = nutrition_parts.get('Protein', 0)
+
+        # Get today's date (without the time)
+        today_date = datetime.now().strftime("%Y-%m-%d")
+
+        # Check if an entry already exists for the trainee for today's date in Trainee_Recipes
+        existing_entry = conn.execute("""
+            SELECT 
+                IFNULL(Trainee_Calories, 0) AS Trainee_Calories,
+                IFNULL(Trainee_Fat, 0) AS Trainee_Fat,
+                IFNULL(Trainee_Carbs, 0) AS Trainee_Carbs,
+                IFNULL(Trainee_Protein, 0) AS Trainee_Protein
+            FROM Trainee_Recipes
+            WHERE Trainee_ID = ? AND DATE(Timestamp) = ?
+        """, (user_id, today_date)).fetchone()
+
+        if existing_entry:
+            # Sum the existing values with the new ones
+            updated_calories = existing_entry['Trainee_Calories'] + calories
+            updated_fats = existing_entry['Trainee_Fat'] + fats
+            updated_carbs = existing_entry['Trainee_Carbs'] + carbs
+            updated_protein = existing_entry['Trainee_Protein'] + protein
+
+            # Update the record for today's date
+            conn.execute("""
+                UPDATE Trainee_Recipes
+                SET Trainee_Calories = ?, Trainee_Fat = ?, Trainee_Carbs = ?, Trainee_Protein = ?
+                WHERE Trainee_ID = ? AND DATE(Timestamp) = ?
+            """, (updated_calories, updated_fats, updated_carbs, updated_protein, user_id, today_date))
+        else:
+            # Insert a new record for today's date
+            conn.execute("""
+                INSERT INTO Trainee_Recipes (Trainee_ID, Timestamp, Trainee_Calories, Trainee_Fat, Trainee_Carbs, Trainee_Protein)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (user_id, today_date, calories, fats, carbs, protein))
+
+        conn.commit()
+        flash("Recipe added to your daily totals successfully!", "success")
+    except Exception as e:
+        flash(f"An error occurred: {str(e)}", "danger")
+    finally:
+        conn.close()
+
+    return redirect(url_for('GetRecipeDetails', recipe_id=recipe_id))
 
 
 @app.route('/add_exercise_to_trainee', methods=['POST'])
@@ -579,7 +659,6 @@ def add_exercise_to_trainee():
             flash("Exercise not found.", "danger")
             return redirect(url_for('GetExercises'))
 
-        # Fetch the current date
         today_date = datetime.now().strftime("%Y-%m-%d")
 
         # Check if the exercise already exists for the trainee on the current date
@@ -607,7 +686,62 @@ def add_exercise_to_trainee():
 
     return redirect(url_for('GetExerciseDetails', exercise_id=exercise_id))
 
+@app.route('/notifications')
+def view_notifications():
+    if 'User_ID' not in session:
+        flash("You need to be logged in to view notifications.", "danger")
+        return redirect(url_for('login'))
+
+    user_id = session['User_ID']
+    conn = get_db_connection()
+    notifications = []
+    try:
+       
+        today_date = datetime.now().strftime("%Y-%m-%d")  
+        print(f"Today's date: {today_date}")
+
+        # Check if the trainee has logged any exercises today
+        has_exercise_today = conn.execute(
+            "SELECT * FROM Trainee_Exercise WHERE Trainee_ID = ? AND Timestamp = ?",
+            (user_id, today_date)
+        ).fetchone()
+        print(f"Exercise records found for today: {has_exercise_today}")
+
+        # Check if the trainee has logged any recipes today
+        has_meals_today = conn.execute(
+            "SELECT * FROM Trainee_Recipes WHERE Trainee_ID = ? AND Timestamp = ?",
+            (user_id, today_date)
+        ).fetchone()
+        print(f"Recipe records found for today: {has_meals_today}")
+
+        # Add notifications if no data is found
+        if not has_exercise_today:
+            notifications.append({
+                'Message': "Don't forget to perform your exercise today!",
+                'Timestamp': today_date
+            })
+
+        if not has_meals_today:
+            notifications.append({
+                'Message': "Don't forget to log your meals today!",
+                'Timestamp': today_date
+            })
+
+    except Exception as e:
+        flash(f"An error occurred: {str(e)}", "danger")
+    finally:
+        conn.close()
+
+    if not notifications:
+        notifications.append({
+            'Message': "No notifications for today. Keep up the good work!",
+            'Timestamp': today_date
+        })
+
+    return render_template('notification.html', notifications=notifications)
+
+
 if __name__ == '__main__':
-    app.run(host="127.0.0.1", port=5000, debug=True)
+    app.run(host="127.0.0.1", port=5001, debug=True)
 
     

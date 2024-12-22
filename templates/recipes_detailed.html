@@ -67,7 +67,7 @@
                             <img class="img-fluid w-100" src="{{ url_for('static', filename=recipe['Media']) }}" alt="{{ recipe['Recipe_Name'] }}">
                         {% endif %}
                     {% else %}
-                        <p>No media available</p>
+                        <img class="img-fluid w-100" src="{{ url_for('static', filename='images/images.jpeg') }}" alt="No Media Available">
                     {% endif %}
                 </div>
 
