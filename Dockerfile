@@ -4,7 +4,7 @@ WORKDIR /app
 
 COPY . .
 
-RUN pip install flask numpy Authlib
+RUN pip install flask numpy Authlib flask-mail requests flask_bcrypt
 
 EXPOSE 5000
 
