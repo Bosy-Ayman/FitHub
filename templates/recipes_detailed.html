@@ -59,14 +59,9 @@
                 <div class="col-lg-6">
                     <!-- Display Media (image or video) -->
                     {% if recipe['Media'] %}
-                        {% if 'mp4' in recipe['Media'] %}
-                            <video controls class="img-fluid w-100">
-                                <source src="{{ url_for('static', filename=recipe['Media']) }}" type="video/mp4">
-                            </video>
-                        {% else %}
-                            <img class="img-fluid w-100" src="{{ url_for('static', filename=recipe['Media']) }}" alt="{{ recipe['Recipe_Name'] }}">
-                        {% endif %}
+                        <img class="img-fluid w-100" src="{{ recipe['Media'] }}" alt="{{ recipe['Recipe_Name'] }}">
                     {% else %}
+                        <!-- Fallback image if no media is available -->
                         <img class="img-fluid w-100" src="{{ url_for('static', filename='images/images.jpeg') }}" alt="No Media Available">
                     {% endif %}
                 </div>

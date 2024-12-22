@@ -406,8 +406,6 @@ def add_comment(post_id):
     return redirect(url_for('login'))
 
 
-
-
 @app.route('/add_recipe', methods=['GET', 'POST'])
 def add_recipe():
     if 'User_ID' not in session:
@@ -491,37 +489,47 @@ def GetRecipes():
 
     conn.close()
     return render_template('recipes.html', recipes=recipes_data)
+import base64
 
 @app.route('/recipes/<int:recipe_id>', methods=['GET'])
 def GetRecipeDetails(recipe_id):
+    import base64
+
     conn = get_db_connection()
     conn.row_factory = sqlite3.Row  # Access rows as dictionaries
     cursor = conn.cursor()
-    user_id = session['User_ID']
 
-    # Fetch the recipe details
-    cursor.execute("SELECT * FROM Recipe WHERE Recipe_ID = ?", (str(recipe_id),))
-    recipe = cursor.fetchone()
+    # Query to fetch recipe details
+    cursor.execute("""
+        SELECT Recipe_ID, Recipe_Name, Meal_Type, Media, Ingredients, Steps, Nutrition_Information
+        FROM Recipe
+        WHERE CAST(Recipe_ID AS TEXT) = ?
+    """, (str(recipe_id),))
+    result = cursor.fetchone()
 
-    if recipe is None:
-        conn.close()
-        app.logger.error(f"Recipe ID {recipe_id} not found in the database.")
-        return render_template('error.html', message="Recipe not found"), 404
+    if result:
+        media_base64 = None
+        if result["Media"]:
+            # If the recipe has an image, encode it to base64
+            media_base64 = base64.b64encode(result["Media"]).decode('utf-8')
+            media_base64 = f"data:image/jpeg;base64,{media_base64}"  # Assuming JPEG format
+            print("Base64 Encoded Media:", media_base64[:100])  # Log the first 100 chars of the Base64 string
+        
+        recipe_details = {
+            "Recipe_ID": result["Recipe_ID"],
+            "Recipe_Name": result["Recipe_Name"],
+            "Meal_Type": result["Meal_Type"],
+            "Media": media_base64,
+            "Ingredients": result["Ingredients"],
+            "Steps": result["Steps"],
+            "Nutrition_Information": result["Nutrition_Information"]
+        }
+        
+        return render_template('recipes_detailed.html', recipe=recipe_details)
+    else:
+        return "Recipe not found", 404
 
-    # Prepare the recipe data
-    recipe_data = {
-        'Recipe_ID': recipe['Recipe_ID'],
-        'Recipe_Name': recipe['Recipe_Name'],
-        'Meal_Type': recipe['Meal_Type'],
-        'Media': recipe['Media'] if recipe['Media'] else url_for('static', filename='images/images.jpeg'),
-        'Ingredients': recipe['Ingredients'],
-        'Steps': recipe['Steps'],
-        'Nutrition_Information': recipe['Nutrition_Information']
-    }
 
-    conn.close()
-    app.logger.info(f"Recipe details fetched successfully for ID {recipe_id}.")
-    return render_template('recipes_detailed.html', recipe=recipe_data)
     
 #Show coach details for trainee so that he can add the suitable coach for him
 import base64
@@ -561,8 +569,6 @@ def GetCoach():
     return render_template('coaches_details.html', coaches=coaches_data)
 
 #show exercises for users
-import base64
-
 @app.route('/exercises', methods=['GET'])
 def GetExercises():
     try:
@@ -596,7 +602,6 @@ def GetExercises():
         print(f"Error fetching exercises: {e}")
         return "Error fetching exercises", 500
 
-import base64
 @app.route('/exercise/<int:exercise_id>', methods=['GET'])
 def GetExerciseDetails(exercise_id):
     import base64
@@ -633,6 +638,7 @@ def GetExerciseDetails(exercise_id):
         return render_template('exercises_detailed.html', exercise=exercise_details)
     else:
         return "Exercise not found", 404
+
 @app.route('/add_exercise', methods=['GET', 'POST'])
 def add_exercise():
     if 'User_ID' not in session:
@@ -692,6 +698,7 @@ def allowed_file(filename):
     """ Check if the uploaded file is allowed (image/video). """
     allowed_extensions = ['png', 'jpg', 'jpeg', 'gif', 'bmp']
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_extensions
+
 @app.route('/add_recipe_to_trainee', methods=['POST'])
 def add_recipe_to_trainee():
     if 'User_ID' not in session:
