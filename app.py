@@ -329,6 +329,7 @@ def personalProfileTraineePosts():
 
 @app.route('/profileTraineePlan', methods=['GET', 'POST'])
 def personalProfileTraineePlan():
+    exercising_flag = True
     conn = get_db_connection()
     pfp = serve_image("User", session["User_ID"])
     gen_info = conn.execute('SELECT * FROM User WHERE User_ID = ?', (session["User_ID"],)).fetchone()
@@ -337,14 +338,17 @@ def personalProfileTraineePlan():
     plan = ast.literal_eval(plan[0])
     today = datetime.now().strftime("%A")[:3]
     exercises = []
-    for exercise in plan[today]:
-        photo = serve_image("Exercise", str(exercise))
-        ex = conn.execute('SELECT Name, Duration, Exercise_ID FROM Exercise WHERE Exercise_ID = ?',
-                          (str(exercise),)).fetchall()
-        exercises.append([photo, ex[0][0], ex[0][1], ex[0][2]])
+    if plan[today][0] != "Rest":
+        for exercise in plan[today]:
+            photo = serve_image("Exercise", str(exercise))
+            ex = conn.execute('SELECT Name, Duration, Exercise_ID FROM Exercise WHERE Exercise_ID = ?',
+                              (str(exercise),)).fetchall()
+            exercises.append([photo, ex[0][0], ex[0][1], ex[0][2]])
+    else:
+        exercising_flag = False
     conn.close()
     return render_template("personal_profile_trainee_plan.html", exercises=exercises,
-                           gen_info=gen_info, trainee_info=trainee_info, pfp=pfp)
+                           gen_info=gen_info, trainee_info=trainee_info, pfp=pfp, exercising_flag=exercising_flag)
 
 
 @app.route('/saveExercise', methods=['GET', 'POST'])
@@ -375,22 +379,23 @@ def saveAllPlan():
     plan = ast.literal_eval(plan[0])
     today = datetime.now().strftime("%A")[:3]
     exercises_ids = ""
-    for exercise in plan[today]:
-        ex = conn.execute('SELECT Exercise_ID FROM Exercise WHERE Exercise_ID = ?', (str(exercise),)).fetchone()
-        exercises_ids += ex[0] + ","
-    exercises_ids = exercises_ids[:-1]
-    today_date = str(datetime.now().strftime("%Y-%m-%d"))
-    no_exercise_yet = conn.execute('SELECT * FROM Trainee_Exercise WHERE Trainee_ID = ? AND Timestamp = ?',
-                                   (session["User_ID"], today_date)).fetchone()
-    if not no_exercise_yet:
-        conn.execute('INSERT INTO Trainee_Exercise (Trainee_ID, Trainee_Exercises, Timestamp) VALUES (?, ?, ?)',
-                     (session["User_ID"], exercises_ids, today_date))
-    else:
-        prev_exercises = conn.execute('SELECT Trainee_Exercises FROM Trainee_Exercise WHERE Trainee_ID = ? '
-                                      'AND Timestamp = ?', (session["User_ID"], today_date)).fetchone()
-        exercises_ids = prev_exercises[0] + "," + exercises_ids
-        conn.execute('UPDATE Trainee_Exercise SET Trainee_Exercises = ? WHERE Trainee_ID = ? AND Timestamp = ?',
-                     (exercises_ids, session["User_ID"], today_date))
+    if plan[today][0] != "Rest":
+        for exercise in plan[today]:
+            ex = conn.execute('SELECT Exercise_ID FROM Exercise WHERE Exercise_ID = ?', (str(exercise),)).fetchone()
+            exercises_ids += ex[0] + ","
+        exercises_ids = exercises_ids[:-1]
+        today_date = str(datetime.now().strftime("%Y-%m-%d"))
+        no_exercise_yet = conn.execute('SELECT * FROM Trainee_Exercise WHERE Trainee_ID = ? AND Timestamp = ?',
+                                       (session["User_ID"], today_date)).fetchone()
+        if not no_exercise_yet:
+            conn.execute('INSERT INTO Trainee_Exercise (Trainee_ID, Trainee_Exercises, Timestamp) VALUES (?, ?, ?)',
+                         (session["User_ID"], exercises_ids, today_date))
+        else:
+            prev_exercises = conn.execute('SELECT Trainee_Exercises FROM Trainee_Exercise WHERE Trainee_ID = ? '
+                                          'AND Timestamp = ?', (session["User_ID"], today_date)).fetchone()
+            exercises_ids = prev_exercises[0] + "," + exercises_ids
+            conn.execute('UPDATE Trainee_Exercise SET Trainee_Exercises = ? WHERE Trainee_ID = ? AND Timestamp = ?',
+                         (exercises_ids, session["User_ID"], today_date))
     conn.commit()
     conn.close()
     return redirect(url_for("personalProfileTraineePlan"))

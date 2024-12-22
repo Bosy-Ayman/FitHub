@@ -40,6 +40,7 @@
     </form>
 </div>
     <p>
+    {% if exercising_flag %} 
         {% for exercise in exercises %}
             <div class="exercise">
             <div class="exercise-data">
@@ -51,6 +52,10 @@
                 </form>
             </div>
         {% endfor %}
+    {% endif %}
+    {% if not exercising_flag %}
+        <p>You're doing great! Rest up for the day :D</p>
+    {% endif %}
     </p>
 </div>
 </body>
