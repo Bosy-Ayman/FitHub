@@ -1076,14 +1076,13 @@ def share_post(conn, post_content, post_media, selected_tags, user):
         os.remove(temp_file_path)
 
     conn.execute(
-        '''INSERT INTO Post (Post_ID, User_ID, Content, Time_Stamp, Media, Tags)
+        '''INSERT INTO Post (Post_ID, User_ID, Content, Time_Stamp, Media, Tags) 
            VALUES (?, ?, ?, ?, ?, ?)''',
         (postid, user['User_ID'], post_content, current_time, media_data, tags_str)
     )
     conn.commit()
 
 
-# function to get user interests
 # function to get user interests
 def get_user_interests(user):
     return user['Interests'].split(',') if user['Interests'] else []
@@ -1094,12 +1093,12 @@ def fetch_posts_by_interest(conn, user_interests):
     if user_interests:
         placeholders = ', '.join(['?'] * len(user_interests))  # placeholders for query
         return conn.execute(
-            f'''SELECT Post.*, User.Name AS Username
-                FROM Post
+            f'''SELECT Post.*, User.Name AS Username 
+                FROM Post 
                 JOIN User ON Post.User_ID = User.User_ID
                 WHERE EXISTS (
-                    SELECT 1 FROM Interest
-                    WHERE Interest.Name IN ({placeholders})
+                    SELECT 1 FROM Interest 
+                    WHERE Interest.Name IN ({placeholders}) 
                       AND Post.Tags LIKE '%' || Interest.Interest_ID || '%'
                 )
                 ORDER BY Post.Time_Stamp DESC''',
@@ -1112,21 +1111,21 @@ def fetch_posts_by_interest(conn, user_interests):
 def fetch_remaining_posts(conn, user_interests):
     if user_interests:
         return conn.execute(
-            '''SELECT Post.*, User.Name AS Username
-               FROM Post
+            '''SELECT Post.*, User.Name AS Username 
+               FROM Post 
                JOIN User ON Post.User_ID = User.User_ID
                WHERE Post.Post_ID NOT IN (
-                   SELECT Post.Post_ID
-                   FROM Post
-                   JOIN Interest
+                   SELECT Post.Post_ID 
+                   FROM Post 
+                   JOIN Interest 
                    ON Post.Tags LIKE '%' || Interest.Interest_ID || '%'
                    WHERE Interest.Name IN ({}))
                ORDER BY Post.Time_Stamp DESC'''.format(', '.join(['?'] * len(user_interests))),
             tuple(user_interests)
         ).fetchall()
     return conn.execute(
-        '''SELECT Post.*, User.Name AS Username
-           FROM Post
+        '''SELECT Post.*, User.Name AS Username 
+           FROM Post 
            JOIN User ON Post.User_ID = User.User_ID
            ORDER BY Post.Time_Stamp DESC'''
     ).fetchall()
@@ -1134,8 +1133,8 @@ def fetch_remaining_posts(conn, user_interests):
 
 # function to fetch comments with usernames
 def fetch_comments_with_usernames(conn):
-    return conn.execute('''SELECT Comment.*, User.Name AS Username
-                           FROM Comment
+    return conn.execute('''SELECT Comment.*, User.Name AS Username 
+                           FROM Comment 
                            JOIN User ON Comment.User_ID = User.User_ID''').fetchall()
 
 
@@ -1148,14 +1147,17 @@ def combine_posts_and_comments(all_posts, comments_with_usernames):
             for comment in comments_with_usernames
             if comment['Post_ID'] == post['Post_ID']
         ]
+        photo = serve_image("Post", post['Post_ID'])
+        img = serve_image("User", post['User_ID'])
         posts_with_comments.append({
             'post': {
                 'Post_ID': post['Post_ID'],
                 'Content': post['Content'],
-                'Media': post['Media'],
+                'Media': photo,
                 'Username': post['Username'],
                 'User_ID': post['User_ID'],
-                'Time_Stamp': post['Time_Stamp']
+                'Time_Stamp': post['Time_Stamp'],
+                'pfp': img
             },
             'comments': post_comments
         })
@@ -1196,8 +1198,7 @@ def posts():
 
         conn.close()  # close database connection
         # render posts page with user, posts, and interests
-        return render_template("posts.html", user=user, posts_with_comments=posts_with_comments,
-                               interests=all_interests)
+        return render_template("posts.html", user=user, posts_with_comments=posts_with_comments, interests=all_interests)
 
     # redirect to login page if no user is logged in
     return redirect(url_for('login'))
