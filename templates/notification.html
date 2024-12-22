@@ -21,29 +21,67 @@
     <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
 </head>
 <body>
-    <!-- Notifications Section -->
-    <div class="container mt-5">
+    <!-- Sidebar -->
+    <nav class="d-lg-flex flex-column flex-shrink-0 p-3 bg-light vh-100 position-fixed" style="width: 280px;" id="sidebar">
+        <a href="/" class="d-flex align-items-center mb-3 mb-md-0 me-md-auto text-decoration-none">
+            <i class="bi bi-clipboard-plus me-2"></i>
+            <span class="fs-4">Fithub</span>
+        </a>
+        <hr>
+        <ul class="nav nav-pills flex-column mb-auto">
+            <li><a href="exercises" class="nav-link text-dark"><i class="bi bi-list-task me-2"></i> View Exercises</a></li>
+            <li><a href="add_exercise" class="nav-link text-dark"><i class="bi bi-gear me-2"></i> Add Exercises</a></li>
+            <li><a href="recipes" class="nav-link text-dark"><i class="bi bi-gear me-2"></i> Recipes</a></li>
+            <li><a href="add_recipe" class="nav-link text-dark"><i class="bi bi-gear me-2"></i> Add Recipes</a></li>
+            <li><a href="notifications" class="nav-link active" aria-current="page"><i class="bi bi-bell me-2"></i> Notifications</a></li>
+            <li><a href="posts" class="nav-link text-dark"><i class="bi bi-gear me-2"></i> Posts</a></li>
+            <li><a href="chats" class="nav-link text-dark"><i class="bi bi-gear me-2"></i> Chats</a></li>
+        </ul>
+        <hr>
+        <div class="dropdown">
+            <a href="#" class="d-flex align-items-center text-dark text-decoration-none dropdown-toggle" id="dropdownUser1" data-bs-toggle="dropdown" aria-expanded="false">
+                <img src="{{ url_for('static', filename='img/user.png') }}" alt="User Image" width="32" height="32" class="rounded-circle me-2">
+                <strong>User</strong>
+            </a>
+            <ul class="dropdown-menu text-small shadow" aria-labelledby="dropdownUser1">
+                <li><a class="dropdown-item" href="personal_profile">Profile</a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item" href="login">Sign out</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Toggler for Smaller Screens -->
+    <button class="btn btn-primary d-lg-none position-fixed top-0 end-0 m-2" id="sidebarToggle" aria-label="Toggle Sidebar">
+        <i class="bi bi-list"></i>
+    </button>
+
+    <!-- Main Content -->
+    <div class="container-xxl py-5" style="margin-left: 300px;">
         <h1 class="text-center mb-4">Your Notifications</h1>
         <div class="card shadow">
             <div class="card-body">
                 {% if notifications %}
-                    <ul class="list-group">
-                        {% for notification in notifications %}
-                            <li class="list-group-item d-flex justify-content-between align-items-center">
-                                <span>{{ notification['Message'] }}</span>
-                                <small class="text-muted">{{ notification['Timestamp'] }}</small>
-                            </li>
-                        {% endfor %}
-                    </ul>
+                <ul class="list-group" aria-label="List of notifications">
+                    {% for notification in notifications %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center {% if not notification['Read'] %}bg-light{% endif %}">
+                        <span>{{ notification['Message'] }}</span>
+                        <small class="text-muted">{{ notification['Timestamp'] }}</small>
+                    </li>
+                    {% endfor %}
+                </ul>
                 {% else %}
-                    <p class="text-center text-muted mb-0">No notifications for today. Keep up the good work!</p>
+                <div class="text-center">
+                    <img src="{{ url_for('static', filename='img/no-notifications.png') }}" alt="No Notifications" class="img-fluid" style="max-width: 150px;">
+                    <p class="text-muted mt-3">No notifications for today. Keep up the good work!</p>
+                </div>
                 {% endif %}
             </div>
         </div>
     </div>
 
     <!-- Back to Top Button -->
-    <a href="#" class="btn btn-lg btn-primary btn-lg-square rounded-circle back-to-top">
+    <a href="#top" class="btn btn-lg btn-primary btn-lg-square rounded-circle back-to-top">
         <i class="bi bi-arrow-up"></i>
     </a>
 
@@ -51,7 +89,16 @@
     <script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0/dist/js/bootstrap.bundle.min.js"></script>
 
-    <!-- Template Javascript -->
-    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <!-- Sidebar Toggle -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const sidebar = document.getElementById('sidebar');
+            const sidebarToggle = document.getElementById('sidebarToggle');
+
+            sidebarToggle.addEventListener('click', () => {
+                sidebar.classList.toggle('hide');
+            });
+        });
+    </script>
 </body>
 </html>

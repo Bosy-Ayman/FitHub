@@ -32,6 +32,37 @@
 </head>
 
 <body>
+        <!-- Sidebar -->
+        <nav class="d-lg-flex flex-column flex-shrink-0 p-3 bg-light vh-100 position-fixed" style="width: 280px;" id="sidebar">
+            <a href="/" class="d-flex align-items-center mb-3 mb-md-0 me-md-auto text-decoration-none">
+                <i class="bi bi-clipboard-plus me-2"></i>
+                <span class="fs-4">Fithub</span>
+            </a>
+            <hr>
+            <ul class="nav nav-pills flex-column mb-auto">
+                <li><a href="exercises" class="nav-link text-dark"><i class="bi bi-list-task me-2"></i> View Exercises</a></li>
+                <li><a href="add_exercise" class="nav-link text-dark"><i class="bi bi-gear me-2"></i> Add Exercises</a></li>
+                <li><a href="recipes" class="nav-link text-dark"><i class="bi bi-gear me-2"></i> Recipes</a></li>
+                <li><a href="add_recipe" class="nav-link text-dark"><i class="bi bi-gear me-2"></i> Add Recipes</a></li>
+                <li><a href="notifications" class="nav-link active" aria-current="page"><i class="bi bi-bell me-2"></i> Notifications</a></li>
+                <li><a href="posts" class="nav-link text-dark"><i class="bi bi-gear me-2"></i> Posts</a></li>
+                <li><a href="chats" class="nav-link text-dark"><i class="bi bi-gear me-2"></i> Chats</a></li>
+
+            </ul>
+            <hr>
+            <div class="dropdown">
+                <a href="#" class="d-flex align-items-center text-dark text-decoration-none dropdown-toggle" id="dropdownUser1" data-bs-toggle="dropdown" aria-expanded="false">
+                    <img src="{{ url_for('static', filename='img/user.png') }}" alt="User Image" width="32" height="32" class="rounded-circle me-2">
+                    <strong>User</strong>
+                </a>
+                <ul class="dropdown-menu text-small shadow" aria-labelledby="dropdownUser1">
+                    <li><a class="dropdown-item" href="#">Profile</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="login">Sign out</a></li>
+                </ul>
+            </div>
+        </nav>
+    
     <!-- Recipe Detail Section Start -->
     <div class="container-xxl py-5">
         <div class="container">

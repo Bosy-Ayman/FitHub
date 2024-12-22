@@ -1346,7 +1346,7 @@ def send_message():
     return redirect(url_for('view_chats', chat_id=chat_id))
 
 
-# Coach can add new recipes
+
 @app.route('/add_recipe', methods=['GET', 'POST'])
 def add_recipe():
     if 'User_ID' not in session:
@@ -1355,15 +1355,15 @@ def add_recipe():
     User_ID = str(session['User_ID'])
 
     if request.method == 'POST':
-        # Get form data
         recipe_name = request.form.get('Recipe_Name')
         meal_type = request.form.get('Meal_Type')
         nutrition_info = request.form.get('Nutrition_Information')
         media = request.files.get('Media')
         steps = request.form.get('Steps')
         ingredients = request.form.get('Ingredients')
-        if not (recipe_name and meal_type and nutrition_info and media and steps and ingredients):
-            flash("All fields are required!", 'error')
+
+        if not (recipe_name and meal_type and nutrition_info and steps and ingredients):
+            flash("All fields are required except Media!", 'error')
             return redirect(url_for('add_recipe'))
 
         try:
@@ -1373,44 +1373,33 @@ def add_recipe():
             # Generate a new Recipe_ID
             cursor.execute("SELECT MAX(CAST(Recipe_ID AS INTEGER)) FROM Recipe")
             max_id = cursor.fetchone()[0]
-            new_recipe_id = str((max_id + 1) if max_id is not None else 1)  # Handle case where table is empty
-            print(f"Generated new Recipe_ID: {new_recipe_id}")
-            temp_path = f"uploads/{media.filename}"
-            media.save(temp_path)
+            new_recipe_id = str((max_id + 1) if max_id is not None else 1)
 
-            # Upload media file and get its unique identifier
-            drive_file_id = upload(temp_path, media.filename)
-            if not drive_file_id:
-                os.remove(temp_path)
-                flash("Failed to upload media file. Please try again.", 'error')
-                return redirect(url_for('add_recipe'))
+            media_binary = None
+            if media:
+                media_binary = media.read()  # Save media as binary
 
-            os.remove(temp_path)
-            print(f"Uploaded media file ID: {drive_file_id}")
-
-            # Insert the new recipe details into the database
-            cursor.execute("""
-                INSERT INTO Recipe (Recipe_ID, Coach_ID, Recipe_Name, Meal_Type,
-                Nutrition_Information, Media, Steps, Ingredients)
+            cursor.execute(
+                """
+                INSERT INTO Recipe (Recipe_ID, Coach_ID, Recipe_Name, Meal_Type, Nutrition_Information, Media, Steps, Ingredients)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """, (new_recipe_id, User_ID, recipe_name, meal_type, nutrition_info, drive_file_id, steps, ingredients))
-
+                """,
+                (new_recipe_id, User_ID, recipe_name, meal_type, nutrition_info, media_binary, steps, ingredients)
+            )
             conn.commit()
             conn.close()
 
-            print(f"New Recipe added successfully with ID: {new_recipe_id}")
             flash(f"Recipe added successfully with ID: {new_recipe_id}!", 'success')
             return redirect(url_for('GetRecipes'))
 
         except Exception as e:
-            print(f"Error occurred while adding recipe: {str(e)}")
             flash(f"An error occurred: {str(e)}. Please try again later.", 'error')
             return redirect(url_for('add_recipe'))
 
     return render_template('add_recipe.html')
 
 
-# Show all recipes to user
+#Show all recipes to user
 @app.route('/recipes', methods=['GET'])
 def GetRecipes():
     conn = get_db_connection()
@@ -1418,61 +1407,108 @@ def GetRecipes():
     cursor.execute("SELECT * FROM Recipe")
     recipes = cursor.fetchall()
 
-    recipes_data = [{
-        'Recipe_ID': str(row[0]),
-        'Recipe_Name': row[3],
-        'Meal_Type': row[2],
-        'Media': row[4],
-        'Ingredients': row[5],
-        'Steps': row[6],
-        'Nutrition_Information': row[7]
-    } for row in recipes]
+    # Extracting and preparing recipe data
+    recipes_data = []
+    for row in recipes:
+        # Check if the image binary data exists
+        if row['Media']:
+            # Convert binary image data to a base64-encoded string
+            media_data = base64.b64encode(row['Media']).decode('utf-8')
+            media_url = f"data:image/jpeg;base64,{media_data}"
+        else:
+            # Use the default placeholder image
+            media_url = url_for('static', filename='images/default_recipes.png')
 
+        recipes_data.append({
+            'Recipe_ID': str(row['Recipe_ID']),
+            'Recipe_Name': row['Recipe_Name'],
+            'Meal_Type': row['Meal_Type'],
+            'Media': media_url,
+            'Ingredients': row['Ingredients'],
+            'Steps': row['Steps'],
+            'Nutrition_Information': row['Nutrition_Information']
+        })
+
+    conn.close()
     return render_template('recipes.html', recipes=recipes_data)
+import base64
 
 
-# Show recipes details when the user click on more details
-@app.route('/recipes/<recipe_id>', methods=['GET'])
+@app.route('/recipes/<int:recipe_id>', methods=['GET'])
 def GetRecipeDetails(recipe_id):
+    import base64
+
     conn = get_db_connection()
+    conn.row_factory = sqlite3.Row  # Access rows as dictionaries
     cursor = conn.cursor()
 
-    cursor.execute("SELECT * FROM Recipe WHERE Recipe_ID = ?", (recipe_id,))
-    recipe = cursor.fetchone()
+    # Query to fetch recipe details
+    cursor.execute("""
+        SELECT Recipe_ID, Recipe_Name, Meal_Type, Media, Ingredients, Steps, Nutrition_Information
+        FROM Recipe
+        WHERE CAST(Recipe_ID AS TEXT) = ?
+    """, (str(recipe_id),))
+    result = cursor.fetchone()
 
-    if recipe is None:
+    if result:
+        media_base64 = None
+        if result["Media"]:
+            # If the recipe has an image, encode it to base64
+            media_base64 = base64.b64encode(result["Media"]).decode('utf-8')
+            media_base64 = f"data:image/jpeg;base64,{media_base64}"  # Assuming JPEG format
+            print("Base64 Encoded Media:", media_base64[:100])  # Log the first 100 chars of the Base64 string
+        
+        recipe_details = {
+            "Recipe_ID": result["Recipe_ID"],
+            "Recipe_Name": result["Recipe_Name"],
+            "Meal_Type": result["Meal_Type"],
+            "Media": media_base64,
+            "Ingredients": result["Ingredients"],
+            "Steps": result["Steps"],
+            "Nutrition_Information": result["Nutrition_Information"]
+        }
+        
+        return render_template('recipes_detailed.html', recipe=recipe_details)
+    else:
         return "Recipe not found", 404
 
-    recipe_data = {
-        'Recipe_ID': str(recipe[0]),
-        'Recipe_Name': recipe[3],
-        'Meal_Type': recipe[2],
-        'Media': recipe[4],
-        'Ingredients': recipe[5],
-        'Steps': recipe[6],
-        'Nutrition_Information': recipe[7]
-    }
-
-    return render_template('recipes_detailed.html', recipe=recipe_data)
 
 
 # Show coach details for trainee so that he can add the suitable coach for him
+
 @app.route('/coaches', methods=['GET'])
 def GetCoach():
     conn = get_db_connection()
     cursor = conn.cursor()
+
+    # Join the Coach and User tables to retrieve coach details along with the image
     query = """
-    SELECT  Coach_ID, Verified, Description, Experience, Certificates
+    SELECT Coach.Coach_ID, Coach.Verified, Coach.Description, Coach.Experience, Coach.Certificates, User.Profile_Picture
     FROM Coach
+    INNER JOIN User ON Coach.Coach_ID = User.User_ID
     """
     cursor.execute(query)
     result = cursor.fetchall()
-    coaches_data = [
-        {"Coach_ID": row[0], "Verified": row[1], "Description": row[2], "Experience": row[3], "Certificates": row[4],
-         } for row in result]
 
+    # Process coach data and encode media as Base64
+    coaches_data = []
+    for row in result:
+        media_base64 = None
+        if row[5]:  # Check if the Media column in the User table has data
+            media_base64 = base64.b64encode(row[5]).decode('utf-8')
+            media_base64 = f"data:image/jpeg;base64,{media_base64}"  # Assuming JPEG format
+        
+        coaches_data.append({
+            "Coach_ID": row[0],
+            "Verified": row[1],
+            "Description": row[2],
+            "Experience": row[3],
+            "Certificates": row[4],
+            "Media": media_base64,  # Pass Base64 media to the template
+        })
+
+    conn.close()
     return render_template('coaches_details.html', coaches=coaches_data)
-
 
 # show exercises for users
 @app.route('/exercises', methods=['GET'])
@@ -1548,11 +1584,10 @@ def GetExerciseDetails(exercise_id):
         return "Exercise not found", 404
 
 
-# Coach can add new exercises
-@app.route('/add_exercises', methods=['GET', 'POST'])
-def AddExercises():
+@app.route('/add_exercise', methods=['GET', 'POST'])
+def add_exercise():
     if 'User_ID' not in session:
-        return redirect(url_for('login'))
+        return redirect(url_for('login'))  # Redirect to login if no session found
 
     User_ID = str(session['User_ID'])
 
@@ -1567,50 +1602,48 @@ def AddExercises():
 
         # Validate form data
         if not (name and media and duration and equipment and description and muscles_targeted):
-            flash("All fields are required!", 'error')
-            return redirect(url_for('AddExercises'))
+            flash("All fields are required except Media!", 'error')
+            return redirect(url_for('add_exercise'))
+
+        # Check if file is valid
+        media_data = None
+        if media and allowed_file(media.filename):
+            media_data = media.read()  # Read the image file into binary
+        elif media:
+            flash("Invalid file format. Only images are allowed.", 'error')
+            return redirect(url_for('add_exercise'))
 
         try:
             conn = get_db_connection()
             cursor = conn.cursor()
 
-            # Generate a new random exercise ID
-            random_exercise_id = random.randint(1000, 9999)
-            cursor.execute("SELECT 1 FROM Exercise WHERE Exercise_ID = ?", (random_exercise_id,))
-            while cursor.fetchone():
-                random_exercise_id = random.randint(1000, 9999)
-            print(f"Generated Exercise ID: {random_exercise_id}")
-            temp_path = f"uploads/{media.filename}"
-            media.save(temp_path)
+            # Generate a new Exercise_ID
+            cursor.execute("SELECT MAX(CAST(Exercise_ID AS INTEGER)) FROM Exercise")
+            max_id = cursor.fetchone()[0]
+            new_exercise_id = str((max_id + 1) if max_id is not None else 1)
 
-            drive_file_id = upload(temp_path, media.filename)
-            if not drive_file_id:
-                os.remove(temp_path)  # Clean up temporary file if upload failed
-                flash("Failed to upload media file. Please try again.", 'error')
-                return redirect(url_for('AddExercises'))
-            # Clean up the temporary file
-            os.remove(temp_path)
-            print(f"Uploaded media file ID: {drive_file_id}")
-            # Insert the exercise details into the database
+            # Insert into the database with binary data
             cursor.execute("""
-                INSERT INTO Exercise (Exercise_ID, Coach_ID, Name, Media,
-                Duration, Equipment, Description, Muscles_Targeted)
+                INSERT INTO Exercise (Exercise_ID, Coach_ID, Name, Media, Duration, Equipment, Description, Muscles_Targeted)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """, (random_exercise_id, User_ID, name, drive_file_id, duration, equipment, description, muscles_targeted))
+            """, (new_exercise_id, User_ID, name, media_data, duration, equipment, description, muscles_targeted))
 
             conn.commit()
             conn.close()
 
-            print(f"Exercise added successfully with ID: {random_exercise_id}!")
-            flash(f"Exercise added successfully with ID: {random_exercise_id}!", 'success')
-            return redirect(url_for('GetExerciseDetails', exercise_id=random_exercise_id))
+            flash(f"Exercise added successfully with ID: {new_exercise_id}!", 'success')
+            return redirect(url_for('get_exercises'))  # Redirect to the 'get_exercises' route
 
         except Exception as e:
-            print(f"Error occurred while adding exercise: {str(e)}")
             flash(f"An error occurred: {str(e)}. Please try again later.", 'error')
-            return redirect(url_for('AddExercises'))
+            return redirect(url_for('add_exercise'))
+
     return render_template('add_exercise.html')
 
+def allowed_file(filename):
+    """ Check if the uploaded file is allowed (image/video). """
+    allowed_extensions = ['png', 'jpg', 'jpeg', 'gif', 'bmp']
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_extensions
 
 @app.route('/add_recipe_to_trainee', methods=['POST'])
 def add_recipe_to_trainee():
