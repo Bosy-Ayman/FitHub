@@ -189,7 +189,7 @@ def editProfileTrainee():
         age = request.form['age']
         height = request.form['height']
         weight = request.form['weight']
-        bmi = round(float(weight) / (float(height) ** 2), 2)
+        bmi = round(int(weight) / (float(height) ** 2), 2)
         interests_id = request.form.getlist('interests')
 
         conn = get_db_connection()
@@ -209,8 +209,9 @@ def editProfileTrainee():
         else:
             conn.execute('UPDATE User SET Name=?, Password=?, Age=?, Interests=? WHERE User_ID=?',
                          (username, pw, age, interests, session["User_ID"]))
+        print(weight, height, bmi, round(float(54) / (float(162) ** 2), 2))
         conn.execute('UPDATE Trainee SET Weight_kg=?, Height_m=?, BMI=? WHERE Trainee_ID=?',
-                     (weight, height, bmi, session["User_ID"]))
+                     (weight, height, str(bmi), session["User_ID"]))
         conn.commit()
         conn.close()
         return redirect(url_for("personalProfileTraineeStats"))
@@ -748,7 +749,7 @@ def oauthTraineeSignup():
         height = request.form['height']
         gender = request.form['gender']
         exercise = request.form['exercise']
-        bmi = round(int(weight) / (float(height) ** 2), 2)
+        bmi = round(float(weight) / (float(height) ** 2), 2)
         interests_id = request.form.getlist('interests')
         security_answer = request.form['sec_ans']
 
@@ -772,7 +773,7 @@ def oauthTraineeSignup():
         # add trainee to trainee table
         conn.execute('INSERT INTO Trainee (Trainee_ID, Weight_kg, Height_m, BMI, Exercise_Level) '
                      'VALUES (?, ?, ?, ?, ?)',
-                     (userid, weight, height, bmi, exercise))
+                     (userid, weight, height, str(bmi), exercise))
 
         # calculate new planid
         planid_count = conn.execute('SELECT COUNT(*) FROM Plan').fetchone()
