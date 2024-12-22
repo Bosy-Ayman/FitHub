@@ -25,10 +25,8 @@ bcrypt = Bcrypt(app)
 app.config['SERVER_NAME'] = '127.0.0.1:5000'
 oauth = OAuth(app)
 
-GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
-print(GOOGLE_CLIENT_ID)
-GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET')
-print(GOOGLE_CLIENT_SECRET)
+GOOGLE_CLIENT_ID = "182040310616-60khtr7cc6mp3ji72ceut8tsivccmrui.apps.googleusercontent.com"
+GOOGLE_CLIENT_SECRET = "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"
 CONF_URL = 'https://accounts.google.com/.well-known/openid-configuration'
 
 oauth.register(
