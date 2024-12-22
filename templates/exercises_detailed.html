@@ -39,7 +39,7 @@
                 <div class="col-lg-12">
                     <div class="section-header text-start mb-4 wow fadeInUp" data-wow-delay="0.1s">
                         <h1 class="display-5">{{ exercise['Name'] }}</h1>
-                        <p>Detailed information about the exercise.</p>
+                        <p>Details and instructions for this exercise.</p>
                     </div>
                 </div>
 
@@ -52,17 +52,20 @@
                         {% endif %}
                     </div>
                 </div>
-                
-                
+
                 <!-- Exercise Details -->
                 <div class="col-lg-6">
                     <div class="bg-light p-4 rounded shadow-sm">
-                        <h4>Duration: {{ exercise['Duration'] }} secs</h4>
-                        <p><strong>Description:</strong> {{ exercise['Description'] }}</p>
-                        <p><strong>Equipment Needed:</strong> {{ exercise['Equipment'] }}</p>
-                        <p><strong>Muscles Targeted:</strong> {{ exercise['Muscles_Targeted'] }}</p>
+                        <h4>Description:</h4>
+                        <p>{{ exercise['Description'] }}</p>
+                        <h4>Duration:</h4>
+                        <p>{{ exercise['Duration'] }}</p>
+                        <h4>Equipment:</h4>
+                        <p>{{ exercise['Equipment'] }}</p>
+                        <h4>Muscles Targeted:</h4>
+                        <p>{{ exercise['Muscles_Targeted'] }}</p>
 
-                        <!-- Add Exercise Form -->
+                        <!-- Example Add Exercise Button (if applicable) -->
                         <form method="POST" action="{{ url_for('add_exercise_to_trainee') }}">
                             <input type="hidden" name="exercise_id" value="{{ exercise['Exercise_ID'] }}">
                             <button type="submit" class="btn btn-primary mt-3">Add to My Exercises</button>

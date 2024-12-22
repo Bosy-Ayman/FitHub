@@ -1,6 +1,5 @@
 # importing necessary libraries
-from flask import Flask, render_template, request, session, flash, redirect, url_for, send_file
-import io
+from flask import Flask, render_template, request, session, flash, redirect, url_for, send_file, jsonify
 from io import BytesIO
 import sqlite3
 import random
@@ -8,6 +7,11 @@ from datetime import datetime
 from flask_mail import Mail, Message
 import numpy as np
 import base64
+import ast
+import os
+from authlib.integrations.flask_client import OAuth
+from flask_bcrypt import Bcrypt
+import tempfile
 
 # database path
 DATABASE = 'FitHub_DB.sqlite'
@@ -15,6 +19,28 @@ DATABASE = 'FitHub_DB.sqlite'
 # app initialization
 app = Flask(__name__)
 app.secret_key = 'suchasecurekey'
+bcrypt = Bcrypt(app)
+
+# oauth config
+app.config['SERVER_NAME'] = '127.0.0.1:4000'
+oauth = OAuth(app)
+
+GOOGLE_CLIENT_ID = "182040310616-60khtr7cc6mp3ji72ceut8tsivccmrui.apps.googleusercontent.com"
+GOOGLE_CLIENT_SECRET = "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"
+CONF_URL = 'https://accounts.google.com/.well-known/openid-configuration'
+
+oauth.register(
+    name='google',
+    client_id=GOOGLE_CLIENT_ID,
+    client_secret=GOOGLE_CLIENT_SECRET,
+    server_metadata_url=CONF_URL,
+    client_kwargs={
+        'scope': 'openid email profile'
+    }
+)
+
+co_email = "s-farha.shady@zewailcity.edu.eg"
+co_pw = "7ThuKc?C"
 
 
 # function to connect to database
@@ -24,14 +50,12 @@ def get_db_connection():
     return conn
 
 
-# save image as binary data
 def photo_to_binary(img):
     with open(img, 'rb') as f:
         image_data = base64.b64encode(f.read()).decode('utf-8')
     return image_data
 
 
-# read binary image
 def serve_image(table, table_id):
     conn = get_db_connection()
     if table == "User":
@@ -41,18 +65,38 @@ def serve_image(table, table_id):
         query = f'SELECT Media FROM {table} WHERE {tid} = ?'
     image_data = conn.execute(query, (table_id,)).fetchone()
     conn.close()
-    print(image_data[0])
     # return default profile photo if user hasn't uploaded a profile picture
     if table == "User":
         if image_data is None or image_data[0] is None:
             return 'static/default_profile.jpg'
+    if table == "Recipe":
+        if image_data is None or image_data[0] is None:
+            return 'static/default_recipe.jpg'
+    if image_data is None or image_data[0] is None:
+        return None
     # change string into base64 to be read properly
     if isinstance(image_data[0], str):
         image_data = base64.b64decode(image_data[0])
         base64_image = base64.b64encode(image_data).decode('utf-8')
         return f"data:image/jpeg;base64,{base64_image}"
+    if isinstance(image_data[0], bytes):
+        base64_image = base64.b64encode(image_data[0]).decode('utf-8')
+        return f"data:image/jpeg;base64,{base64_image}"
     # send image
     return send_file(BytesIO(image_data), mimetype='image/jpg', as_attachment=False)
+
+
+def send_email(rcvr, subject, content):
+    app.config['MAIL_SERVER'] = 'smtp.gmail.com'
+    app.config['MAIL_PORT'] = 465
+    app.config['MAIL_USERNAME'] = co_email
+    app.config['MAIL_PASSWORD'] = co_pw
+    app.config['MAIL_USE_TLS'] = False
+    app.config['MAIL_USE_SSL'] = True
+    mail = Mail(app)
+    msg = Message(subject, sender=co_email, recipients=[rcvr])
+    msg.body = content
+    mail.send(msg)
 
 
 # load homepage
@@ -76,6 +120,16 @@ def home_page():
 # get redirected to the appropriate sign-up page
 @app.route('/signUp', methods=['GET', 'POST'])
 def role_choice():
+    if request.method == 'POST':
+        print("POST request received")
+        print("Request form data:", request.form)
+        print("Request data:", request.data)
+        print("Session before update:", session)
+        session["role"] = request.form.get("role")
+        if session["role"] == "Trainee":
+            return redirect(url_for("traineeSignUp"))
+        elif session["role"] == "Coach":
+            return redirect(url_for("coachSignUp"))
     return render_template("role.html")
 
 
@@ -89,11 +143,13 @@ def login():
 
         # save user if a user with teh entered email and password exists
         conn = get_db_connection()
-        user = conn.execute('SELECT * FROM User WHERE Email = ? AND password = ?',
-                            (Email, password)).fetchone()
+        user = conn.execute('SELECT * FROM User WHERE Email = ?',
+                            (Email,)).fetchone()
+        pw_hash = user[3]
+        pw_flag = bcrypt.check_password_hash(pw_hash, password)
         conn.close()
         # if a user is found save the id in the session to be used across pages
-        if user:
+        if user and pw_flag:
             session['User_ID'] = user[0]
             return redirect(url_for('redirectPerRole'))
         # if user isn't found a message is shown to inform that the credentials are invalid
@@ -112,19 +168,108 @@ def personalProfile():
     if role[0] == "Trainee":
         return redirect(url_for("personalProfileTraineeStats"))
     elif role[0] == "Coach":
-        return redirect(url_for("personalProfileCoach"))
+        return redirect(url_for("personalProfileCoachInformation"))
     else:
         return redirect(url_for("home_page"))
+
+
+@app.route('/editProfileTrainee', methods=['GET', 'POST'])
+def editProfileTrainee():
+    conn = get_db_connection()
+    gen_info = conn.execute('SELECT * FROM User WHERE User_ID = ?', (session["User_ID"],)).fetchone()
+    trainee_info = conn.execute('SELECT * FROM Trainee WHERE Trainee_ID = ?', (session["User_ID"],)).fetchone()
+    all_interests = conn.execute('SELECT * FROM Interest').fetchall()
+    conn.close()
+    if request.method == 'POST':
+        pfp_file = request.files['pfp']
+        username = request.form['username']
+        pw = request.form['password']
+        age = request.form['age']
+        height = request.form['height']
+        weight = request.form['weight']
+        bmi = round(int(weight) / (float(height) ** 2), 2)
+        interests_id = request.form.getlist('interests')
+
+        conn = get_db_connection()
+        with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+            temp_file.write(pfp_file.read())
+            temp_file_path = temp_file.name
+        pfp = photo_to_binary(temp_file_path)
+        os.remove(temp_file_path)
+        interests = ""
+        for intr in interests_id:
+            inter = conn.execute('SELECT Name FROM Interest WHERE Interest_ID = ?', (intr,)).fetchone()
+            interests += inter[0] + ","
+        interests = interests[:-1]
+        if pfp_file:
+            conn.execute('UPDATE User SET Profile_picture=?, Name=?, Password=?, Age=?, Interests=? WHERE User_ID=?',
+                         (pfp, username, pw, age, interests, session["User_ID"]))
+        else:
+            conn.execute('UPDATE User SET Name=?, Password=?, Age=?, Interests=? WHERE User_ID=?',
+                         (username, pw, age, interests, session["User_ID"]))
+        print(weight, height, bmi, round(float(54) / (float(162) ** 2), 2))
+        conn.execute('UPDATE Trainee SET Weight_kg=?, Height_m=?, BMI=? WHERE Trainee_ID=?',
+                     (weight, height, str(bmi), session["User_ID"]))
+        conn.commit()
+        conn.close()
+        return redirect(url_for("personalProfileTraineeStats"))
+
+    return render_template("edit_profile_trainee.html", gen_info=gen_info, trainee_info=trainee_info,
+                           interests=all_interests)
 
 
 @app.route('/profileTraineeStats', methods=['GET', 'POST'])
 def personalProfileTraineeStats():
     conn = get_db_connection()
+    trainee = True
+    role = conn.execute('SELECT Role FROM User WHERE User_ID = ?', (session["User_ID"],)).fetchone()
+    if role == "Coach":
+        trainee = False
     gen_info = conn.execute('SELECT * FROM User WHERE User_ID = ?', (session["User_ID"],)).fetchone()
     trainee_info = conn.execute('SELECT * FROM Trainee WHERE Trainee_ID = ?', (session["User_ID"],)).fetchone()
+    today = datetime.now().strftime("%Y-%m-%d")
+    today = str(today)
+    exercises_list = conn.execute('SELECT * FROM Trainee_Exercise WHERE Trainee_ID = ? AND Timestamp = ?',
+                                  (session["User_ID"], today)).fetchall()
+    workout_time = 0
+    exercises = []
+    if exercises_list:
+        exercise_flag = True
+        exercises_id = exercises_list[0][1].split(",")
+        for eid in exercises_id:
+            photo = serve_image("Exercise", eid)
+            e = conn.execute('SELECT Name, Duration FROM Exercise WHERE Exercise_ID = ?', (eid,)).fetchall()
+            exercises.append([e[0][0], photo, e[0][1]])
+        for exercise in exercises:
+            workout_time += int(exercise[2])
+    else:
+        exercise_flag = False
+    nutrition = conn.execute('SELECT * FROM Trainee_Recipes WHERE Trainee_ID = ? AND Timestamp = ?',
+                             (session["User_ID"], today)).fetchall()
     conn.close()
+    if nutrition:
+        nutrition = nutrition[0]
+        nutrition_flag = True
+    else:
+        nutrition = []
+        nutrition_flag = False
     pfp = serve_image("User", session["User_ID"])
-    return render_template("personal_profile_trainee_stats.html", gen_info=gen_info, pfp=pfp, trainee_info=trainee_info)
+    workout_time = round(workout_time / 3600, 2)
+
+    if request.method == 'POST':
+        data = request.get_json()
+        if not data or 'number' not in data:
+            return jsonify({'message': 'No time entered'}), 400
+        number = data['number']
+        # Example of processing the number if needed
+        workout_time += float(number) / 60
+        print(workout_time)
+        return jsonify({'message': 'Success', 'new_workout_time': workout_time})
+
+    return render_template("personal_profile_trainee_stats.html", gen_info=gen_info, pfp=pfp,
+                           trainee_info=trainee_info, exercises=exercises, workout_time=workout_time,
+                           nutrition=nutrition, trainee=trainee, exercise_flag=exercise_flag,
+                           nutrition_flag=nutrition_flag)
 
 
 @app.route('/profileTraineePosts', methods=['GET', 'POST'])
@@ -143,21 +288,20 @@ def personalProfileTraineePosts():
     username = conn.execute('SELECT Name FROM User WHERE User_ID = ?', (session["User_ID"],)).fetchone()
     conn.close()
     posts_with_comments = []
-    # print(posts_comments[0][0][1])
-    # print(personal_posts[0][0])
     for i in range(len(personal_posts)):
         post = personal_posts[i]
         if posts_comments[i]:
             comments = [
-                {'Username': comment[0][12], 'Content': comment[0][3]}
-                for comment in posts_comments
-                if comment[0][1] == post[0]
+                {'Username': comment[12], 'Content': comment[3]}
+                for comment in posts_comments[i]
+                if comment[1] == post[0]
             ]
             posts_with_comments.append({
                 'post': {
+                    'pfp': serve_image("User", session["User_ID"]),
                     'Post_ID': post['Post_ID'],
                     'Content': post['Content'],
-                    'Media': post['Media'],
+                    'Media': serve_image("Post", post['Post_ID']),
                     'Username': username[0],
                     'User_ID': post['User_ID'],
                     'Time_Stamp': post['Time_Stamp']
@@ -167,10 +311,11 @@ def personalProfileTraineePosts():
         else:
             posts_with_comments.append({
                 'post': {
+                    'pfp': serve_image("User", session["User_ID"]),
                     'Post_ID': post['Post_ID'],
                     'Content': post['Content'],
-                    'Media': post['Media'],
-                    'Username': post['Username'],
+                    'Media': serve_image("Post", post['Post_ID']),
+                    'Username': username[0],
                     'User_ID': post['User_ID'],
                     'Time_Stamp': post['Time_Stamp']
                 },
@@ -179,6 +324,290 @@ def personalProfileTraineePosts():
     pfp = serve_image("User", session["User_ID"])
     return render_template("personal_profile_trainee_posts.html", posts_with_comments=posts_with_comments,
                            pfp=pfp, gen_info=gen_info, trainee_info=trainee_info)
+
+
+@app.route('/profileTraineePlan', methods=['GET', 'POST'])
+def personalProfileTraineePlan():
+    exercising_flag = True
+    conn = get_db_connection()
+    pfp = serve_image("User", session["User_ID"])
+    gen_info = conn.execute('SELECT * FROM User WHERE User_ID = ?', (session["User_ID"],)).fetchone()
+    trainee_info = conn.execute('SELECT * FROM Trainee WHERE Trainee_ID = ?', (session["User_ID"],)).fetchone()
+    plan = conn.execute('SELECT Plan FROM Plan WHERE Trainee_ID = ?', (session["User_ID"],)).fetchone()
+    plan = ast.literal_eval(plan[0])
+    today = datetime.now().strftime("%A")[:3]
+    exercises = []
+    if plan[today][0] != "Rest":
+        for exercise in plan[today]:
+            photo = serve_image("Exercise", str(exercise))
+            ex = conn.execute('SELECT Name, Duration, Exercise_ID FROM Exercise WHERE Exercise_ID = ?',
+                              (str(exercise),)).fetchall()
+            exercises.append([photo, ex[0][0], ex[0][1], ex[0][2]])
+    else:
+        exercising_flag = False
+    conn.close()
+    return render_template("personal_profile_trainee_plan.html", exercises=exercises,
+                           gen_info=gen_info, trainee_info=trainee_info, pfp=pfp, exercising_flag=exercising_flag)
+
+
+@app.route('/saveExercise', methods=['GET', 'POST'])
+def saveExercise():
+    exercise_id = request.form['saveExercise']
+    conn = get_db_connection()
+    today_date = str(datetime.now().strftime("%Y-%m-%d"))
+    no_exercise_yet = conn.execute('SELECT * FROM Trainee_Exercise WHERE Trainee_ID = ? AND Timestamp = ?',
+                                   (session["User_ID"], today_date)).fetchone()
+    if not no_exercise_yet:
+        conn.execute('INSERT INTO Trainee_Exercise (Trainee_ID, Trainee_Exercises, Timestamp) VALUES (?, ?, ?)',
+                     (session["User_ID"], exercise_id, today_date))
+    else:
+        prev_exercises = conn.execute('SELECT Trainee_Exercises FROM Trainee_Exercise WHERE Trainee_ID = ? '
+                                      'AND Timestamp = ?', (session["User_ID"], today_date)).fetchone()
+        exercises_ids = prev_exercises[0] + "," + exercise_id
+        conn.execute('UPDATE Trainee_Exercise SET Trainee_Exercises = ? WHERE Trainee_ID = ? AND Timestamp = ?',
+                     (exercises_ids, session["User_ID"], today_date))
+    conn.commit()
+    conn.close()
+    return redirect(url_for("personalProfileTraineePlan"))
+
+
+@app.route('/saveAllPlan', methods=['GET', 'POST'])
+def saveAllPlan():
+    conn = get_db_connection()
+    plan = conn.execute('SELECT Plan FROM Plan WHERE Trainee_ID = ?', (session["User_ID"],)).fetchone()
+    plan = ast.literal_eval(plan[0])
+    today = datetime.now().strftime("%A")[:3]
+    exercises_ids = ""
+    if plan[today][0] != "Rest":
+        for exercise in plan[today]:
+            ex = conn.execute('SELECT Exercise_ID FROM Exercise WHERE Exercise_ID = ?', (str(exercise),)).fetchone()
+            exercises_ids += ex[0] + ","
+        exercises_ids = exercises_ids[:-1]
+        today_date = str(datetime.now().strftime("%Y-%m-%d"))
+        no_exercise_yet = conn.execute('SELECT * FROM Trainee_Exercise WHERE Trainee_ID = ? AND Timestamp = ?',
+                                       (session["User_ID"], today_date)).fetchone()
+        if not no_exercise_yet:
+            conn.execute('INSERT INTO Trainee_Exercise (Trainee_ID, Trainee_Exercises, Timestamp) VALUES (?, ?, ?)',
+                         (session["User_ID"], exercises_ids, today_date))
+        else:
+            prev_exercises = conn.execute('SELECT Trainee_Exercises FROM Trainee_Exercise WHERE Trainee_ID = ? '
+                                          'AND Timestamp = ?', (session["User_ID"], today_date)).fetchone()
+            exercises_ids = prev_exercises[0] + "," + exercises_ids
+            conn.execute('UPDATE Trainee_Exercise SET Trainee_Exercises = ? WHERE Trainee_ID = ? AND Timestamp = ?',
+                         (exercises_ids, session["User_ID"], today_date))
+    conn.commit()
+    conn.close()
+    return redirect(url_for("personalProfileTraineePlan"))
+
+
+@app.route('/profileCoachInformation', methods=['GET', 'POST'])
+def personalProfileCoachInformation():
+    conn = get_db_connection()
+    gen_info = conn.execute('SELECT * FROM User WHERE User_ID = ?', (session["User_ID"],)).fetchone()
+    coach_info = conn.execute('SELECT * FROM Coach WHERE Coach_ID = ?', (session["User_ID"],)).fetchone()
+    conn.close()
+    if coach_info[4]:
+        certificates = coach_info[4].split(" ")
+    else:
+        certificates = []
+    pfp = serve_image("User", session["User_ID"])
+    return render_template("personal_profile_coach_information.html", gen_info=gen_info, pfp=pfp,
+                           coach_info=coach_info, certificates=certificates)
+
+
+@app.route('/editProfileCoach', methods=['GET', 'POST'])
+def editProfileCoach():
+    conn = get_db_connection()
+    gen_info = conn.execute('SELECT * FROM User WHERE User_ID = ?', (session["User_ID"],)).fetchone()
+    coach_info = conn.execute('SELECT * FROM Coach WHERE Coach_ID = ?', (session["User_ID"],)).fetchone()
+    all_interests = conn.execute('SELECT * FROM Interest').fetchall()
+    conn.close()
+    if request.method == 'POST':
+        pfp_file = request.files['pfp']
+        username = request.form['username']
+        pw = request.form['password']
+        age = request.form['age']
+        interests_id = request.form.getlist('interests')
+        expYears = request.form['expYears']
+        expDesc = request.form['expDesc']
+        certificates = request.form['certificates']
+
+        conn = get_db_connection()
+        with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+            temp_file.write(pfp_file.read())
+            temp_file_path = temp_file.name
+        pfp = photo_to_binary(temp_file_path)
+        os.remove(temp_file_path)
+        interests = ""
+        for intr in interests_id:
+            inter = conn.execute('SELECT Name FROM Interest WHERE Interest_ID = ?', (intr,)).fetchone()
+            interests += inter[0] + ","
+        interests = interests[:-1]
+        if pfp_file:
+            conn.execute('UPDATE User SET Profile_picture=?, Name=?, Password=?, Age=?, Interests=? WHERE User_ID=?',
+                         (pfp, username, pw, age, interests, session["User_ID"]))
+        else:
+            conn.execute('UPDATE User SET Name=?, Password=?, Age=?, Interests=? WHERE User_ID=?',
+                         (username, pw, age, interests, session["User_ID"]))
+        conn.execute('UPDATE Coach SET Description=?, Experience=?, Certificates=? WHERE Coach_ID=?',
+                     (expDesc, expYears, certificates, session["User_ID"]))
+        conn.commit()
+        conn.close()
+        return redirect(url_for("personalProfileCoachInformation"))
+
+    return render_template("edit_profile_coach.html", gen_info=gen_info, coach_info=coach_info,
+                           interests=all_interests)
+
+
+@app.route('/profileCoachPosts', methods=['GET', 'POST'])
+def profileCoachPosts():
+    conn = get_db_connection()
+    gen_info = conn.execute('SELECT * FROM User WHERE User_ID = ?', (session["User_ID"],)).fetchone()
+    coach_info = conn.execute('SELECT * FROM Coach WHERE Coach_ID = ?', (session["User_ID"],)).fetchone()
+    personal_posts = conn.execute('SELECT * FROM Post WHERE User_ID = ? ORDER BY Time_Stamp DESC',
+                                  (session["User_ID"],)).fetchall()
+    posts_comments = []
+    for post in personal_posts:
+        comments = conn.execute('SELECT * FROM Comment JOIN Post ON Post.Post_ID = Comment.Post_ID '
+                                'JOIN User ON User.User_ID = Comment.User_ID '
+                                'WHERE Post.Post_ID = ?', (post[0],)).fetchall()
+        posts_comments.append(comments)
+    username = conn.execute('SELECT Name FROM User WHERE User_ID = ?', (session["User_ID"],)).fetchone()
+    conn.close()
+    posts_with_comments = []
+    for i in range(len(personal_posts)):
+        post = personal_posts[i]
+        if posts_comments[i]:
+            comments = [
+                {'Username': comment[12], 'Content': comment[3]}
+                for comment in posts_comments[i]
+                if comment[1] == post[0]
+            ]
+            posts_with_comments.append({
+                'post': {
+                    'pfp': serve_image("User", session["User_ID"]),
+                    'Post_ID': post['Post_ID'],
+                    'Content': post['Content'],
+                    'Media': serve_image("Post", post['Post_ID']),
+                    'Username': username[0],
+                    'User_ID': post['User_ID'],
+                    'Time_Stamp': post['Time_Stamp']
+                },
+                'comments': comments
+            })
+        else:
+            posts_with_comments.append({
+                'post': {
+                    'pfp': serve_image("User", session["User_ID"]),
+                    'Post_ID': post['Post_ID'],
+                    'Content': post['Content'],
+                    'Media': serve_image("Post", post['Post_ID']),
+                    'Username': username[0],
+                    'User_ID': post['User_ID'],
+                    'Time_Stamp': post['Time_Stamp']
+                },
+                'comments': []
+            })
+    pfp = serve_image("User", session["User_ID"])
+    return render_template("personal_profile_coach_posts.html", posts_with_comments=posts_with_comments,
+                           pfp=pfp, gen_info=gen_info, coach_info=coach_info)
+
+
+@app.route('/profileCoachTrainees', methods=['GET', 'POST'])
+def profileCoachTrainees():
+    conn = get_db_connection()
+    gen_info = conn.execute('SELECT * FROM User WHERE User_ID = ?', (session["User_ID"],)).fetchone()
+    coach_info = conn.execute('SELECT * FROM Coach WHERE Coach_ID = ?', (session["User_ID"],)).fetchone()
+    trainees_collected = conn.execute('SELECT * FROM Trainee JOIN User '
+                                      'ON User.User_ID = Trainee.Trainee_ID WHERE Coach_ID = ?',
+                                      (session["User_ID"],)).fetchall()
+    conn.close()
+    trainees = []
+    for trainee in trainees_collected:
+        img = serve_image("User", trainee[0])
+        trainee_info = [trainee[8], img, trainee[0]]
+        trainees.append(trainee_info)
+    pfp = serve_image("User", session["User_ID"])
+    return render_template("personal_profile_coach_trainees.html", trainees=trainees, gen_info=gen_info,
+                           coach_info=coach_info, pfp=pfp)
+
+
+@app.route('/traineeStatsCoach', methods=['GET', 'POST'])
+def traineeStatsCoach():
+    trainee_id = request.form['trainee_id']
+    conn = get_db_connection()
+    trainee = True
+    role = conn.execute('SELECT Role FROM User WHERE User_ID = ?', (trainee_id,)).fetchone()
+    if role == "Coach":
+        trainee = False
+    gen_info = conn.execute('SELECT * FROM User WHERE User_ID = ?', (trainee_id,)).fetchone()
+    trainee_info = conn.execute('SELECT * FROM Trainee WHERE Trainee_ID = ?', (trainee_id,)).fetchone()
+    today = datetime.now().strftime("%Y-%m-%d")
+    today = str(today)
+    exercises_list = conn.execute('SELECT * FROM Trainee_Exercise WHERE Trainee_ID = ? AND Timestamp = ?',
+                                  (trainee_id, today)).fetchall()
+    workout_time = 0
+    exercises = []
+    if exercises_list:
+        exercise_flag = True
+        exercises_id = exercises_list[0][1].split(",")
+        for eid in exercises_id:
+            e = conn.execute('SELECT Name, Media, Duration FROM Exercise WHERE Exercise_ID = ?', (eid,)).fetchall()
+            exercises.append(e[0])
+        for exercise in exercises:
+            workout_time += int(exercise[2])
+    else:
+        exercise_flag = False
+    nutrition = conn.execute('SELECT * FROM Trainee_Recipes WHERE Trainee_ID = ? AND Timestamp = ?',
+                             (trainee_id, today)).fetchall()
+    conn.close()
+    if nutrition:
+        nutrition = nutrition[0]
+        nutrition_flag = True
+    else:
+        nutrition = []
+        nutrition_flag = False
+    pfp = serve_image("User", trainee_id)
+    workout_time = round(workout_time / 3600, 2)
+
+    return render_template("traineeStatsCoach.html", gen_info=gen_info, pfp=pfp,
+                           trainee_info=trainee_info, exercises=exercises, workout_time=workout_time,
+                           nutrition=nutrition, trainee=trainee, exercise_flag=exercise_flag,
+                           nutrition_flag=nutrition_flag)
+
+
+@app.route('/profileCoachRecipes', methods=['GET', 'POST'])
+def profileCoachRecipes():
+    conn = get_db_connection()
+    gen_info = conn.execute('SELECT * FROM User WHERE User_ID = ?', (session["User_ID"],)).fetchone()
+    coach_info = conn.execute('SELECT * FROM Coach WHERE Coach_ID = ?', (session["User_ID"],)).fetchone()
+    recipes_rows = conn.execute('SELECT * FROM Recipe WHERE Coach_ID = ?', (session["User_ID"],)).fetchall()
+    conn.close()
+    recipes = []
+    for recipe in recipes_rows:
+        recipe_img = serve_image("Recipe", recipe[0])
+        #                 name        type   ingredients   steps    nutrition      img
+        recipes.append([recipe[3], recipe[2], recipe[5], recipe[6], recipe[7], recipe_img])
+    pfp = serve_image("User", session["User_ID"])
+    return render_template("personal_profile_coach_recipes.html", recipes=recipes, gen_info=gen_info,
+                           coach_info=coach_info, pfp=pfp)
+
+
+@app.route('/profileCoachExercises', methods=['GET', 'POST'])
+def profileCoachExercises():
+    conn = get_db_connection()
+    gen_info = conn.execute('SELECT * FROM User WHERE User_ID = ?', (session["User_ID"],)).fetchone()
+    coach_info = conn.execute('SELECT * FROM Coach WHERE Coach_ID = ?', (session["User_ID"],)).fetchone()
+    exercises_rows = conn.execute('SELECT * FROM Exercise WHERE Coach_ID = ?', (session["User_ID"],)).fetchall()
+    conn.close()
+    exercises = []
+    for exercise in exercises_rows:
+        exercise_img = serve_image("Exercise", exercise[0])
+        #                   name        duration   description    muscles      equipment   more info       img
+        exercises.append([exercise[2], exercise[6], exercise[7], exercise[4], exercise[5], exercise[8], exercise_img])
+    pfp = serve_image("User", session["User_ID"])
+    return render_template("personal_profile_coach_exercises.html", exercises=exercises, gen_info=gen_info,
+                           coach_info=coach_info, pfp=pfp)
 
 
 @app.route('/forgotPW', methods=['GET', 'POST'])
@@ -203,11 +632,14 @@ def forgotPW():
             session.pop('fp_email', None)
             session.pop('security_question', None)
             session.pop('show_pw_change', None)
+            send_email(session["fp_email"], "Password Reset", "Your password has been reset, "
+                                                              "make sure to save it this time!")
             return redirect(url_for("login"))
 
         elif session['fp_email']:
             if 'answer' in request.form:
                 answer = request.form['answer'].lower()
+                print(session["security_question"])
                 if session["security_question"] and answer == session["security_question"][1].lower():
                     session["show_pw_change"] = True
                 else:
@@ -271,6 +703,101 @@ def logout():
     return redirect(url_for('login'))
 
 
+@app.route('/google/')
+def google():
+    nonce = os.urandom(16).hex()
+    session['oauth_nonce'] = nonce
+    redirect_uri = url_for('google_auth', _external=True)
+    return oauth.google.authorize_redirect(redirect_uri, nonce=nonce, prompt="select_account")
+
+
+@app.route('/google/auth/')
+def google_auth():
+    token = oauth.google.authorize_access_token()
+
+    nonce = session.pop('oauth_nonce', None)
+    if nonce is None:
+        return redirect(url_for('google'))
+
+    user = oauth.google.parse_id_token(token, nonce=nonce)
+    auth = user.get("sub")
+    conn = get_db_connection()
+    a_user = conn.execute('SELECT * FROM User WHERE Authentication = ?', (str(auth),)).fetchone()
+    if a_user:
+        session['User_ID'] = a_user[0]
+        return redirect(url_for('redirectPerRole'))
+    session["auth"] = auth
+    session["oauth_email"] = user.get("email")
+    if session["role"] == "Trainee":
+        return redirect(url_for("oauthTraineeSignup"))
+    return redirect(url_for("oauthCoachSignup"))
+
+
+@app.route('/oauthTraineeSignup', methods=['GET', 'POST'])
+def oauthTraineeSignup():
+    questions = ["What was your dream job as a child?", "What was the name of your first stuffed animal?",
+                 "What was the color of your favorite childhood blanket?"]
+    security_question = questions[np.random.randint(0, len(questions))]
+    # save the trainee's information based on their input
+    if request.method == 'POST':
+        role = "Trainee"
+        username = request.form['username']
+        age = request.form['age']
+        weight = request.form['weight']
+        height = request.form['height']
+        gender = request.form['gender']
+        exercise = request.form['exercise']
+        bmi = round(float(weight) / (float(height) ** 2), 2)
+        interests_id = request.form.getlist('interests')
+        security_answer = request.form['sec_ans']
+
+        conn = get_db_connection()
+        # save interests entered by their names
+        interests = ""
+        for intr in interests_id:
+            inter = conn.execute('SELECT Name FROM Interest WHERE Interest_ID = ?', (intr,)).fetchone()
+            interests += inter[0] + ","
+        interests = interests[:-1]
+        # calculate new userid
+        userid_count = conn.execute('SELECT COUNT(*) FROM User').fetchone()
+        userid = str(userid_count[0] + 1)
+        sec_qa = security_question + "," + security_answer
+        # add trainee to user table
+        conn.execute('INSERT INTO User (User_ID, Name, Age, Gender, Authentication, '
+                     'Role, Interests, Security_Question) '
+                     'VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+                     (userid, username, age, gender, session["auth"], role, interests, sec_qa))
+
+        # add trainee to trainee table
+        conn.execute('INSERT INTO Trainee (Trainee_ID, Weight_kg, Height_m, BMI, Exercise_Level) '
+                     'VALUES (?, ?, ?, ?, ?)',
+                     (userid, weight, height, str(bmi), exercise))
+
+        # calculate new planid
+        planid_count = conn.execute('SELECT COUNT(*) FROM Plan').fetchone()
+        planid = str(planid_count[0] + 1)
+
+        # add basic plan based on gender
+        if gender == "Female":
+            init_plan = conn.execute('SELECT Plan FROM Plan WHERE Trainee_ID = ?', ("2",)).fetchone()
+            conn.execute('INSERT INTO Plan (Plan_ID, Trainee_ID, Plan) VALUES (?, ?, ?)',
+                         (planid, userid, init_plan[0]))
+        else:
+            init_plan = conn.execute('SELECT Plan FROM Plan WHERE Trainee_ID = ?', ("38",)).fetchone()
+            print(init_plan)
+            conn.execute('INSERT INTO Plan (Plan_ID, Trainee_ID, Plan) VALUES (?, ?, ?)',
+                         (planid, userid, init_plan[0]))
+        conn.commit()
+        conn.close()
+        session["auth"] = None
+        # return user to login page
+        return redirect(url_for('login'))
+    conn = get_db_connection()
+    all_interests = conn.execute('SELECT * FROM Interest').fetchall()
+    conn.close()
+    return render_template("oauthTraineeSignup.html", security_question=security_question, interests=all_interests)
+
+
 # trainee sign-up
 @app.route('/trainee', methods=["GET", "POST"])
 def traineeSignUp():
@@ -308,11 +835,12 @@ def traineeSignUp():
         email_check = conn.execute('SELECT * FROM User WHERE Email = ?', (email,)).fetchone()
         if not email_check:
             sec_qa = security_question + "," + security_answer
+            hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
             # add trainee to user table
             conn.execute('INSERT INTO User (User_ID, Name, Email, Age, Gender, Password, '
                          'Role, Interests, Security_Question) '
                          'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                         (userid, username, email, age, gender, password, role, interests, sec_qa))
+                         (userid, username, email, age, gender, hashed_password, role, interests, sec_qa))
 
             # add trainee to trainee table
             conn.execute('INSERT INTO Trainee (Trainee_ID, Weight_kg, Height_m, BMI, Exercise_Level) '
@@ -363,16 +891,10 @@ def coachSignUp():
         expYears = str(request.form['expYears']) + " years"
         expDesc = request.form['expDesc']
         gender = request.form['gender']
-        certificates = request.files['certificates']
+        certificates = request.form['certificates']
         password = request.form['password']
         interests_id = request.form.getlist('interests')
         security_answer = request.form['sec_ans']
-
-        certificates_data = []
-        for certificate in certificates:
-            with open(certificate, 'rb') as file:
-                certificate_data = file.read()
-                certificates_data.append(certificate_data)
 
         conn = get_db_connection()
         # save interests entered by their names
@@ -389,16 +911,17 @@ def coachSignUp():
         email_check = conn.execute('SELECT * FROM User WHERE Email = ?', (email,)).fetchone()
         if not email_check:
             sec_qa = security_question + "," + security_answer
+            hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
             # add coach to user table
             conn.execute('INSERT INTO User (User_ID, Name, Email, Age, Gender, Password, '
                          'Role, Interests, Security_Question) '
                          'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                         (userid, username, email, age, gender, password, role, interests, sec_qa))
+                         (userid, username, email, age, gender, hashed_password, role, interests, sec_qa))
 
             # add coach to coach table
             conn.execute('INSERT INTO Coach (Coach_ID, Verified, Description, Experience, Certificates) '
                          'VALUES (?, ?, ?, ?, ?)',
-                         (userid, verified, expDesc, expYears, certificates_data))
+                         (userid, verified, expDesc, expYears, certificates))
 
             conn.commit()
             conn.close()
@@ -409,8 +932,60 @@ def coachSignUp():
     conn = get_db_connection()
     all_interests = conn.execute('SELECT * FROM Interest').fetchall()
     conn.close()
-    return render_template("traineeSignUp.html", interests=all_interests, email_exists=email_exists,
+    return render_template("coachSignUp.html", interests=all_interests, email_exists=email_exists,
                            security_question=security_question)
+
+
+@app.route('/oauthCoachSignup', methods=['GET', 'POST'])
+def oauthCoachSignup():
+    questions = ["What was your dream job as a child?", "What was the name of your first stuffed animal?",
+                 "What was the color of your favorite childhood blanket?"]
+    security_question = questions[np.random.randint(0, len(questions))]
+    # save the coach's information based on their input
+    if request.method == 'POST':
+        role = "Coach"
+        verified = "FALSE"
+        username = request.form['username']
+        age = request.form['age']
+        expYears = str(request.form['expYears']) + " years"
+        expDesc = request.form['expDesc']
+        gender = request.form['gender']
+        certificates = request.form['certificates']
+        interests_id = request.form.getlist('interests')
+        security_answer = request.form['sec_ans']
+
+        conn = get_db_connection()
+        # save interests entered by their names
+        interests = ""
+        for intr in interests_id:
+            inter = conn.execute('SELECT Name FROM Interest WHERE Interest_ID = ?', (intr,)).fetchone()
+            interests += inter[0] + ","
+        interests = interests[:-1]
+        # calculate new userid
+        userid_count = conn.execute('SELECT COUNT(*) FROM User').fetchone()
+        userid = str(userid_count[0] + 1)
+
+        sec_qa = security_question + "," + security_answer
+        # add coach to user table
+        conn.execute('INSERT INTO User (User_ID, Name, Age, Gender, Email, '
+                     'Role, Interests, Security_Question, Authentication) '
+                     'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                     (userid, username, age, gender, session["oauth_email"], role, interests, sec_qa, session["auth"]))
+        session["oauth_email"] = None
+        # add coach to coach table
+        conn.execute('INSERT INTO Coach (Coach_ID, Verified, Description, Experience, Certificates) '
+                     'VALUES (?, ?, ?, ?, ?)',
+                     (userid, verified, expDesc, expYears, certificates))
+
+        conn.commit()
+        conn.close()
+        # return user to login page
+        return redirect(url_for('login'))
+    # get all interests from database to show in form
+    conn = get_db_connection()
+    all_interests = conn.execute('SELECT * FROM Interest').fetchall()
+    conn.close()
+    return render_template("oauthCoachSignUp.html", interests=all_interests, security_question=security_question)
 
 
 # admin page
@@ -420,8 +995,14 @@ def unverifiedCoaches():
     # get all unverified coaches
     unverified_Coaches = conn.execute('SELECT * FROM Coach JOIN User ON User_ID=Coach_ID '
                                       'WHERE Verified = "FALSE"').fetchall()
+    certificates = {}
+    for coach in unverified_Coaches:
+        if coach[4]:
+            certificates[coach[0]] = (coach[4].split(" "))
+        else:
+            certificates[coach[0]] = []
     conn.close()
-    return render_template("verifyCoaches.html", coaches=unverified_Coaches)
+    return render_template("verifyCoaches.html", coaches=unverified_Coaches, certificates=certificates)
 
 
 # logic for coach verification
@@ -435,16 +1016,8 @@ def verifyCoach():
     conn.execute('UPDATE Coach SET Verified = "TRUE" WHERE Coach_ID=?', (coachID,))
     conn.commit()
     conn.close()
-    app.config['MAIL_SERVER'] = 'smtp.gmail.com'
-    app.config['MAIL_PORT'] = 465
-    app.config['MAIL_USERNAME'] = '******'
-    app.config['MAIL_PASSWORD'] = '******'
-    app.config['MAIL_USE_TLS'] = False
-    app.config['MAIL_USE_SSL'] = True
-    mail = Mail(app)
-    msg = Message('FitHub Verification', sender='******', recipients=[coach_mail])
-    msg.body = "Congratulation! You got verified, you can now access our site as a coach :D"
-    mail.send(msg)
+    send_email(coach_mail, "FitHub Access",
+               "Congratulation! You got verified, you can now access our site as a coach :D")
     # return to admin page
     return redirect(url_for('unverifiedCoaches'))
 
@@ -455,13 +1028,138 @@ def denyCoach():
     # gets coachID
     coachID = request.form['deny_coach']
     conn = get_db_connection()
+    coach_mail = conn.execute('SELECT Email From User WHERE User_ID=?', (coachID,)).fetchone()[0]
     # delete coach from coach & user tables
     conn.execute('DELETE FROM Coach WHERE Coach_ID=?', (coachID,))
     conn.execute('DELETE FROM User WHERE User_ID=?', (coachID,))
     conn.commit()
     conn.close()
+    send_email(coach_mail, "FitHub Access", "Unfortunately, you have been denied access to FitHub. "
+                                            "Work on your experiences and try again!")
     # return to admin page
     return redirect(url_for('unverifiedCoaches'))
+
+
+# function to get user information
+def get_user(User_ID):
+    conn = get_db_connection()  # connect to database
+    user = conn.execute('SELECT * FROM User WHERE User_ID = ?', (User_ID,)).fetchone()  # fetch user info
+    return user, conn
+
+
+# function to get all interests
+def get_interests(conn):
+    return conn.execute('SELECT * FROM Interest').fetchall()  # fetch all interests
+
+
+# function to handle post submission
+def share_post(conn, post_content, post_media, selected_tags, user):
+    postid_count = conn.execute('SELECT COUNT(*) FROM Post').fetchone()
+    postid = postid_count[0] + 1
+    current_time = datetime.now().strftime("%Y-%m-%d %H:%M")
+    tags_str = '/'.join(selected_tags)
+
+    # save media as a temporary file and convert it to binary data
+    media_data = None
+    if post_media:
+        # save the file to a temporary location
+        with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+            temp_file.write(post_media.read())
+            temp_file_path = temp_file.name
+
+        # convert the temporary file to binary data
+        media_data = photo_to_binary(temp_file_path)
+
+        # clean up the temporary file
+        os.remove(temp_file_path)
+
+    conn.execute(
+        '''INSERT INTO Post (Post_ID, User_ID, Content, Time_Stamp, Media, Tags) 
+           VALUES (?, ?, ?, ?, ?, ?)''',
+        (postid, user['User_ID'], post_content, current_time, media_data, tags_str)
+    )
+    conn.commit()
+
+
+# function to get user interests
+def get_user_interests(user):
+    return user['Interests'].split(',') if user['Interests'] else []
+
+
+# function to fetch posts by interest
+def fetch_posts_by_interest(conn, user_interests):
+    if user_interests:
+        placeholders = ', '.join(['?'] * len(user_interests))  # placeholders for query
+        return conn.execute(
+            f'''SELECT Post.*, User.Name AS Username 
+                FROM Post 
+                JOIN User ON Post.User_ID = User.User_ID
+                WHERE EXISTS (
+                    SELECT 1 FROM Interest 
+                    WHERE Interest.Name IN ({placeholders}) 
+                      AND Post.Tags LIKE '%' || Interest.Interest_ID || '%'
+                )
+                ORDER BY Post.Time_Stamp DESC''',
+            tuple(user_interests)
+        ).fetchall()
+    return []
+
+
+# function to fetch remaining posts
+def fetch_remaining_posts(conn, user_interests):
+    if user_interests:
+        return conn.execute(
+            '''SELECT Post.*, User.Name AS Username 
+               FROM Post 
+               JOIN User ON Post.User_ID = User.User_ID
+               WHERE Post.Post_ID NOT IN (
+                   SELECT Post.Post_ID 
+                   FROM Post 
+                   JOIN Interest 
+                   ON Post.Tags LIKE '%' || Interest.Interest_ID || '%'
+                   WHERE Interest.Name IN ({}))
+               ORDER BY Post.Time_Stamp DESC'''.format(', '.join(['?'] * len(user_interests))),
+            tuple(user_interests)
+        ).fetchall()
+    return conn.execute(
+        '''SELECT Post.*, User.Name AS Username 
+           FROM Post 
+           JOIN User ON Post.User_ID = User.User_ID
+           ORDER BY Post.Time_Stamp DESC'''
+    ).fetchall()
+
+
+# function to fetch comments with usernames
+def fetch_comments_with_usernames(conn):
+    return conn.execute('''SELECT Comment.*, User.Name AS Username 
+                           FROM Comment 
+                           JOIN User ON Comment.User_ID = User.User_ID''').fetchall()
+
+
+# function to combine posts with their respective comments
+def combine_posts_and_comments(all_posts, comments_with_usernames):
+    posts_with_comments = []
+    for post in all_posts:
+        post_comments = [
+            {'Username': comment['Username'], 'Content': comment['Content']}
+            for comment in comments_with_usernames
+            if comment['Post_ID'] == post['Post_ID']
+        ]
+        photo = serve_image("Post", post['Post_ID'])
+        img = serve_image("User", post['User_ID'])
+        posts_with_comments.append({
+            'post': {
+                'Post_ID': post['Post_ID'],
+                'Content': post['Content'],
+                'Media': photo,
+                'Username': post['Username'],
+                'User_ID': post['User_ID'],
+                'Time_Stamp': post['Time_Stamp'],
+                'pfp': img
+            },
+            'comments': post_comments
+        })
+    return posts_with_comments
 
 
 # route to display and create posts
@@ -470,110 +1168,35 @@ def posts():
     # check if a user is logged in
     if 'User_ID' in session:
         User_ID = session['User_ID']  # get user id from session
-        conn = get_db_connection()  # connect to database
 
-        # fetch user information from the database
-        user = conn.execute('SELECT * FROM User WHERE User_ID = ?', (User_ID,)).fetchone()
-
-        # fetch all available interests from the database
-        all_interests = conn.execute('SELECT * FROM Interest').fetchall()
+        # Get user info and interests
+        user, conn = get_user(User_ID)
+        all_interests = get_interests(conn)
 
         # handle post submission
         if request.method == 'POST':
             post_content = request.form['content']  # get post content
-            post_media = request.form.get('media')  # get post media (to be handled)
+            post_media = request.files['media']  # get post media (to be handled)
             selected_tags = request.form.getlist('tags')  # get selected tags as a list
+            share_post(conn, post_content, post_media, selected_tags, user)
 
-            # calculate new post id
-            postid_count = conn.execute('SELECT COUNT(*) FROM Post').fetchone()
-            postid = postid_count[0] + 1  # increment post count for unique id
-
-            # get current datetime in standardized format
-            current_time = datetime.now().strftime("%Y-%m-%d %H:%M")
-
-            # save post to database with tags as a slash-separated string
-            tags_str = '/'.join(selected_tags)
-            conn.execute(
-                '''INSERT INTO Post (Post_ID, User_ID, Content, Time_Stamp, Media, Tags)
-                   VALUES (?, ?, ?, ?, ?, ?)''',
-                (postid, user['User_ID'], post_content, current_time, post_media, tags_str)
-            )
-            conn.commit()  # commit changes to database
-
-        # get user interests as a list
-        user_interests = user['Interests'].split(',') if user['Interests'] else []
-        posts_by_interest = []  # initialize posts matching user interests
-
-        # fetch posts matching user interests
-        if user_interests:
-            placeholders = ', '.join(['?'] * len(user_interests))  # placeholders for query
-            posts_by_interest = conn.execute(
-                f'''SELECT Post.*, User.Name AS Username
-                    FROM Post
-                    JOIN User ON Post.User_ID = User.User_ID
-                    WHERE EXISTS (
-                        SELECT 1 FROM Interest
-                        WHERE Interest.Name IN ({placeholders})
-                          AND Post.Tags LIKE '%' || Interest.Interest_ID || '%'
-                    )
-                    ORDER BY Post.Time_Stamp DESC''',
-                tuple(user_interests)
-            ).fetchall()
-
-        # fetch remaining posts not matching user interests
-        remaining_posts = conn.execute(
-            '''SELECT Post.*, User.Name AS Username
-               FROM Post
-               JOIN User ON Post.User_ID = User.User_ID
-               WHERE Post.Post_ID NOT IN (
-                   SELECT Post.Post_ID
-                   FROM Post
-                   JOIN Interest
-                   ON Post.Tags LIKE '%' || Interest.Interest_ID || '%'
-                   WHERE Interest.Name IN ({}))
-               ORDER BY Post.Time_Stamp DESC'''.format(', '.join(['?'] * len(user_interests))),
-            tuple(user_interests)
-        ).fetchall() if user_interests else conn.execute(
-            '''SELECT Post.*, User.Name AS Username
-               FROM Post
-               JOIN User ON Post.User_ID = User.User_ID
-               ORDER BY Post.Time_Stamp DESC'''
-        ).fetchall()
+        # get user interests and posts
+        user_interests = get_user_interests(user)
+        posts_by_interest = fetch_posts_by_interest(conn, user_interests)
+        remaining_posts = fetch_remaining_posts(conn, user_interests)
 
         # combine and sort all posts by timestamp
         all_posts = sorted(posts_by_interest + remaining_posts, key=lambda x: x['Time_Stamp'], reverse=True)
 
         # fetch all comments with usernames
-        comments_with_usernames = conn.execute('''
-            SELECT Comment.*, User.Name AS Username
-            FROM Comment
-            JOIN User ON Comment.User_ID = User.User_ID
-        ''').fetchall()
+        comments_with_usernames = fetch_comments_with_usernames(conn)
 
         # combine posts with their respective comments
-        posts_with_comments = []
-        for post in all_posts:
-            post_comments = [
-                {'Username': comment['Username'], 'Content': comment['Content']}
-                for comment in comments_with_usernames
-                if comment['Post_ID'] == post['Post_ID']
-            ]
-            posts_with_comments.append({
-                'post': {
-                    'Post_ID': post['Post_ID'],
-                    'Content': post['Content'],
-                    'Media': post['Media'],
-                    'Username': post['Username'],
-                    'User_ID': post['User_ID'],
-                    'Time_Stamp': post['Time_Stamp']
-                },
-                'comments': post_comments
-            })
+        posts_with_comments = combine_posts_and_comments(all_posts, comments_with_usernames)
 
         conn.close()  # close database connection
         # render posts page with user, posts, and interests
-        return render_template("posts.html", user=user, posts_with_comments=posts_with_comments,
-                               interests=all_interests)
+        return render_template("posts.html", user=user, posts_with_comments=posts_with_comments, interests=all_interests)
 
     # redirect to login page if no user is logged in
     return redirect(url_for('login'))
@@ -612,6 +1235,117 @@ def add_comment(post_id):
     return redirect(url_for('login'))
 
 
+# route to display chats for current user or specific chat
+@app.route('/chats', methods=['GET', 'POST'])
+def view_chats():
+    # redirect to login if not logged in
+    if 'User_ID' not in session:
+        return redirect(url_for('login'))
+
+    # get current user ID from session
+    current_user_id = session['User_ID']
+
+    # connect to database
+    conn = get_db_connection()
+
+    # fetch chats for current user
+    chats = conn.execute('''
+        SELECT Chat.Chat_ID,
+               CASE
+                   WHEN Chat.User1_ID = ? THEN Chat.User2_ID
+                   ELSE Chat.User1_ID
+               END AS Other_User_ID,
+               (SELECT Name FROM User WHERE User.User_ID =
+                   CASE
+                       WHEN Chat.User1_ID = ? THEN Chat.User2_ID
+                       ELSE Chat.User1_ID
+                   END) AS Other_User_Name
+        FROM Chat
+        WHERE Chat.User1_ID = ? OR Chat.User2_ID = ?
+        ORDER BY (SELECT MAX(Time_Stamp) FROM Message WHERE Message.Chat_ID = Chat.Chat_ID) DESC
+    ''', (current_user_id, current_user_id, current_user_id, current_user_id)).fetchall()
+
+    # get selected chat ID from URL
+    selected_chat_id = request.args.get('chat_id')
+    selected_chat = None
+    messages = []
+
+    # if chat selected, fetch messages
+    if selected_chat_id:
+        selected_chat = next((chat for chat in chats if str(chat['Chat_ID']) == selected_chat_id), None)
+        if selected_chat:
+            # fetch messages for selected chat
+            messages = conn.execute('''
+                SELECT Message.Content, Message.Sender_ID, Message.Time_Stamp, User.Name
+                FROM Message
+                JOIN User ON Message.Sender_ID = User.User_ID
+                WHERE Message.Chat_ID = ?
+                ORDER BY Message.Time_Stamp ASC
+            ''', (selected_chat_id,)).fetchall()
+        else:
+            # show error if chat invalid
+            flash('Invalid chat selected.', 'danger')
+
+    # close database connection
+    conn.close()
+
+    # render chat page
+    return render_template('chat.html', chats=chats, selected_chat=selected_chat, messages=messages,
+                           current_user_id=current_user_id)
+
+
+# route to handle sending new message
+@app.route('/send_message', methods=['POST'])
+def send_message():
+    # redirect to login if not logged in
+    if 'User_ID' not in session:
+        return redirect(url_for('login'))
+
+    # get current user ID from session
+    current_user_id = session['User_ID']
+
+    # get chat ID and message content from form
+    chat_id = request.form.get('chat_id')
+    message_content = request.form.get('message_content')
+
+    # log chat ID and message content for debugging
+    print(f"Chat ID: {chat_id}, Message Content: {message_content}")
+
+    # show error if chat ID or message content missing
+    if not chat_id or not message_content:
+        flash('Chat ID and message content are required.', 'error')
+        return redirect(url_for('view_chats', chat_id=chat_id))
+
+    conn = get_db_connection()
+    try:
+        # calculate new message ID
+        messegeid_count = conn.execute('SELECT COUNT(*) FROM Message').fetchone()
+        new_message_id = messegeid_count[0] + 1
+
+        # insert message into database
+        conn.execute('''
+            INSERT INTO Message (Message_ID, Chat_ID, Sender_ID, Content, Time_Stamp)
+            VALUES (? ,?, ?, ?, datetime('now'))
+        ''', (new_message_id, chat_id, current_user_id, message_content))
+
+        # commit changes and close connection
+        conn.commit()
+        conn.close()
+
+        # show success message
+        flash('Message sent successfully!', 'success')
+    except Exception as e:
+        # rollback on error and close connection
+        conn.rollback()
+        conn.close()
+
+        # show error message
+        flash(f'Failed to send message: {str(e)}', 'error')
+
+    # redirect to chat view page
+    return redirect(url_for('view_chats', chat_id=chat_id))
+
+
 # Coach can add new recipes
 @app.route('/add_recipe', methods=['GET', 'POST'])
 def add_recipe():
@@ -619,7 +1353,7 @@ def add_recipe():
         return redirect(url_for('login'))
 
     User_ID = str(session['User_ID'])
-    
+
     if request.method == 'POST':
         # Get form data
         recipe_name = request.form.get('Recipe_Name')
@@ -647,10 +1381,10 @@ def add_recipe():
             # Upload media file and get its unique identifier
             drive_file_id = upload(temp_path, media.filename)
             if not drive_file_id:
-                os.remove(temp_path) 
+                os.remove(temp_path)
                 flash("Failed to upload media file. Please try again.", 'error')
                 return redirect(url_for('add_recipe'))
-            
+
             os.remove(temp_path)
             print(f"Uploaded media file ID: {drive_file_id}")
 
@@ -748,7 +1482,7 @@ def GetExercises():
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         cursor.execute("SELECT Exercise_ID, Name, Media, Duration, Equipment, Muscles_Targeted FROM Exercise")
-        
+
         exercises = cursor.fetchall()
         conn.close()
 
@@ -798,7 +1532,7 @@ def GetExerciseDetails(exercise_id):
             media_base64 = base64.b64encode(result["Media"]).decode('utf-8')
             media_base64 = f"data:image/jpeg;base64,{media_base64}"  # Assuming JPEG format
             print("Base64 Encoded Media:", media_base64[:100])  # Log the first 100 chars of the Base64 string
-        
+
         exercise_details = {
             "Exercise_ID": result["Exercise_ID"],
             "Coach_ID": result["Coach_ID"],
@@ -875,7 +1609,6 @@ def AddExercises():
             print(f"Error occurred while adding exercise: {str(e)}")
             flash(f"An error occurred: {str(e)}. Please try again later.", 'error')
             return redirect(url_for('AddExercises'))
-
     return render_template('add_exercise.html')
 
 
@@ -917,7 +1650,7 @@ def add_recipe_to_trainee():
 
         # Check if an entry already exists for the trainee for today's date in Trainee_Recipes
         existing_entry = conn.execute("""
-            SELECT 
+            SELECT
                 IFNULL(Trainee_Calories, 0) AS Trainee_Calories,
                 IFNULL(Trainee_Fat, 0) AS Trainee_Fat,
                 IFNULL(Trainee_Carbs, 0) AS Trainee_Carbs,
@@ -942,7 +1675,8 @@ def add_recipe_to_trainee():
         else:
             # Insert a new record for today's date
             conn.execute("""
-                INSERT INTO Trainee_Recipes (Trainee_ID, Timestamp, Trainee_Calories, Trainee_Fat, Trainee_Carbs, Trainee_Protein)
+                INSERT INTO Trainee_Recipes (Trainee_ID, Timestamp, Trainee_Calories, Trainee_Fat,
+                Trainee_Carbs, Trainee_Protein)
                 VALUES (?, ?, ?, ?, ?, ?)
             """, (user_id, today_date, calories, fats, carbs, protein))
 
@@ -984,7 +1718,7 @@ def add_exercise_to_trainee():
 
         # Check if the exercise already exists for the trainee on the current date
         existing_entry = conn.execute(
-            """SELECT * FROM Trainee_Exercises 
+            """SELECT * FROM Trainee_Exercises
                WHERE Trainee_ID = ? AND Exercise_ID = ? AND DATE(Timestamp) = ?""",
             (user_id, exercise_id, today_date)
         ).fetchone()
@@ -1007,6 +1741,7 @@ def add_exercise_to_trainee():
 
     return redirect(url_for('GetExerciseDetails', exercise_id=exercise_id))
 
+
 @app.route('/notifications')
 def view_notifications():
     if 'User_ID' not in session:
@@ -1017,8 +1752,8 @@ def view_notifications():
     conn = get_db_connection()
     notifications = []
     try:
-       
-        today_date = datetime.now().strftime("%Y-%m-%d")  
+
+        today_date = datetime.now().strftime("%Y-%m-%d")
         print(f"Today's date: {today_date}")
 
         # Check if the trainee has logged any exercises today
@@ -1062,7 +1797,6 @@ def view_notifications():
     return render_template('notification.html', notifications=notifications)
 
 
-if __name__ == '__main__':
-    app.run(host="127.0.0.1", port=5000, debug=True)
+if __name__ == "__main__":
+    app.run(debug=True, host="0.0.0.0", port=4000)
 
-    

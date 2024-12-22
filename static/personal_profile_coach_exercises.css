@@ -1,0 +1,226 @@
+body {
+    margin: 0;
+    padding: 0;
+    background-color: white;
+    font-family: sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    color: midnightblue;
+}
+
+/* Container Styling */
+.container {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding: 20px;
+    width: 100%;
+    align-items: center;
+}
+
+/* User Info */
+.user-info {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.user-info img {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    margin-right: 10px;
+}
+
+.user-info h4 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: bold;
+}
+
+/* Toggle view Comments Button */
+.toggle-comments-button {
+    background-color: #6f93e2;
+    color: white;
+    border: none;
+    padding: 10px;
+    border-radius: 5px;
+    cursor: pointer;
+    margin-top: 10px;
+    width: 100%;
+}
+
+/* Add Comment */
+.comment-form {
+    display: flex;
+    align-items: center;
+    margin-top: 10px;
+    width: 97%;
+    gap: 10px;
+    margin-bottom: 10px;
+    padding: 10px;
+    border-radius: 6px;
+    border: 1px solid lightgray;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.comment-form textarea {
+    padding: 10px;
+    border-radius: 6px;
+    border: 1px solid lightgray;
+    font-size: 12px;
+    width: 70%;
+    height: 25px;
+}
+
+.comment-form button {
+    background-color: #6f93e2;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    cursor: pointer;
+    border-radius: 6px;
+    font-size: 14px;
+    width: 25%;
+}
+
+.user-info-wrapper {
+    display: flex;
+    align-items: center;
+}
+
+.top-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px;
+    color: white;
+    background: linear-gradient(to bottom, cornflowerblue, deepskyblue);
+    position: fixed;
+    top: 0;
+    width: 100%;
+    z-index: 1000;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.top-banner p {
+    margin: 0;
+    font-size: 0.9em;
+    line-height: 1.5;
+}
+
+.top-banner img {
+    border-radius: 50%;
+    width: 100px;
+    height: 100px;
+    object-fit: cover;
+    margin-right: 20px;
+    margin-left: 30px;
+}
+
+.top-banner form {
+    margin-top: 10px;
+}
+
+.top-banner .user-info {
+    flex-grow: 1;
+}
+
+.top-banner button[type="submit"] {
+    background-color: #415df6;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    padding: 10px 15px;
+    font-size: 1em;
+    cursor: pointer;
+    margin-right: 30px;
+}
+
+button[type="submit"] {
+    background-color: #405cf5;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    padding: 10px 15px;
+    font-size: 1em;
+    cursor: pointer;
+}
+
+button[type="submit"]:hover {
+    background-color: #1F2C75;
+}
+
+/* Redirection buttons bar */
+.redirections {
+    display: flex;
+    justify-content: center;
+    margin: 0;
+    gap: 10px;
+    padding: 10px 0 10px;
+    position: fixed;
+    top: 140px;  /* Keep the same top value */
+    width: 100%;
+    z-index: 999;
+    background-color: white;
+}
+
+.redirections button:hover {
+    background-color: #1F2C75;
+}
+
+/* Content section styling */
+.content {
+    margin-top: 180px;  /* Adjust this to ensure space between redirections and content */
+    padding: 20px;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.content img {
+    border-radius: 50%;
+    width: 80px;
+    height: 80px;
+    object-fit: cover;
+    margin-right: 20px;
+}
+
+
+/* Trainee details styling */
+.exercise-details {
+    display: flex;
+    align-items: start;
+    justify-content: space-between; /* Ensures the image and buttons are aligned horizontally */
+    background-color: #f9f9ff;
+    border: 1px solid #e0e0e0;
+    border-radius: 10px;
+    padding: 15px;
+    width: 80%;
+    max-width: 600px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    flex-wrap: nowrap;  /* Prevents wrapping */
+    position: relative;
+    flex-direction: column;
+}
+
+/* Adjust the layout of the trainee's information and image */
+.exercise-details img {
+    border-radius: 50%;
+    width: 100px;
+    height: 100px;
+    object-fit: cover;
+    margin-right: 20px;
+    align-self: center;
+}
+
+.title {
+    font-size: 1.1em;
+    text-decoration-line: underline;
+    margin-bottom: 5px;
+    margin-top: 15px;
+}

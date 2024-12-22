@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Profile</title>
+    {# link to stylesheet #}
+    <link rel="stylesheet" href="{{ url_for('static', filename='personal_profile_coach_recipes.css') }}">
+</head>
+<body>
+<div class="top-banner">
+    <div class="user-info-wrapper">
+        <img src="{{ pfp }}" alt="Profile photo">
+        <p>
+            {{ gen_info[1] }} <br>
+            Coach<br>
+            Age: {{ gen_info[5] }}<br>
+        </p>
+    </div>
+    <form action="/editProfileCoach">
+        <button type="submit">Edit Profile</button>
+    </form>
+</div>
+<div class="redirections">
+    <form action="/profileCoachInformation">
+        <button type="submit" name="info">Information</button>
+    </form>
+    <form action="/profileCoachPosts">
+        <button type="submit" name="posts">My Posts</button>
+    </form>
+    <form action="/profileCoachTrainees">
+        <button type="submit" name="trainees">My Trainees</button>
+    </form>
+    <form action="/profileCoachRecipes">
+        <button type="submit" name="recipes">My Recipes</button>
+    </form>
+    <form action="/profileCoachExercises">
+        <button type="submit" name="exercises">My Exercises</button>
+    </form>
+</div>
+<div class="content">
+    <h3>My Recipes</h3>
+    {% for recipe in recipes %}
+    	<div class="recipe-details">
+        	<img src="{{ recipe[5] }}" alt="recipe image"> 
+            <p>
+                <div class="title">Name:<br></div>
+                {{ recipe[0] }}<br>
+                <div class="title">Type:<br></div>
+                {{ recipe[1] }}<br>
+                <div class="title">Ingredients:<br></div>
+                {{ recipe[2] }}<br>
+                <div class="title">Steps:<br></div>
+                {{ recipe[3] }}<br>
+                <div class="title">Nutrition Information:<br></div>
+                {{ recipe[4] }}
+            </p>
+        </div>
+    {% endfor %}
+    
+</div>
+</body>
+</html>

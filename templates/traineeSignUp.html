@@ -9,6 +9,13 @@
 <body>
 <div class="form-container">
 <h1>Trainee</h1>
+<div class="google_signin">
+    <a href="google/">
+        <img id="google"
+             src="https://www.drupal.org/files/issues/2020-01-26/google_logo.png"
+             alt="Google"> <br>
+    </a>
+</div>
 {# Take trainee's information for sign-up #}
 <form action="/trainee" method="POST">
     <p>
@@ -53,8 +60,6 @@
         </div>
     <br>
     <input type="password" id="password" name="password" required placeholder="Password">
-    <br>
-    <input type="text" id="sec_ans" name="sec_ans" required placeholder="{{ security_question }}">
     <br>
     {# button to sign-up trainee #}
     <button type="submit">Sign Up!</button>

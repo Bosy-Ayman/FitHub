@@ -23,7 +23,7 @@
             <th>Actions</th>
         </tr>
         {# loop on coaches sent from backend #}
-        {%for coach in coaches%}
+        {% for coach in coaches %}
             <tr>
                 <td>{{ coach[0] }}</td> {# ID #}
                 <td>{{ coach[6] }}</td> {# name #}
@@ -31,7 +31,14 @@
                 <td>{{ coach[11] }}</td> {# gender #}
                 <td>{{ coach[2] }}</td> {# experience description #}
                 <td>{{ coach[3] }}</td> {# experience years #}
-                <td>{{ coach[4] }}</td> {# certificates #}
+                <td>
+                {% set certificates = certificates[coach[0]] %}
+                {% if certificates %}
+                    {% for certificate in certificates %}
+                    <a href="{{ certificate }}">Open Certificate</a><br>
+                    {% endfor %}
+                {% endif %}
+                </td> {# certificates #}
                 <td>
                     {# button to verify the coach in this row #}
                     <form method="POST" action="/verify_coach">

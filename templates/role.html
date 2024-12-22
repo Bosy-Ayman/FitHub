@@ -11,12 +11,14 @@
     <div class="role">
         <h3>Choose your role:</h3>
         {# redirect new user to trainee sign-up page #}
-        <form action="/trainee">
-            <button type="submit" value="Trainee">Trainee</button>
+        <form method="post" action="/signUp">
+            <input type="hidden" name="role" value="Trainee">
+            <button type="submit">Trainee</button>
         </form>
-        <form action="/coach">
-            {# redirect new user to coach sign-up page #}
-            <button type="submit" value="Coach">Coach</button>
+        {# redirect new user to coach sign-up page #}
+        <form method="post" action="/signUp">
+            <input type="hidden" name="role" value="Coach">
+            <button type="submit">Coach</button>
         </form>
     </div>
 </div>

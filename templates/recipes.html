@@ -29,6 +29,33 @@
 
     <!-- Template Stylesheet -->
     <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+
+    <style>
+        /* Custom styles */
+        .sidebar {
+            width: 280px;
+            height: 100vh;
+            position: fixed;
+            background-color: #f8f9fa;
+        }
+
+        .main-content {
+            margin-left: 300px;
+            padding: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                height: auto;
+                position: static;
+            }
+
+            .main-content {
+                margin-left: 0;
+            }
+        }
+    </style>
 </head>
 
 <body>
@@ -37,81 +64,85 @@
         <div class="spinner-border text-primary" role="status"></div>
     </div>
     <!-- Spinner End -->
-<!-- Sidebar -->
-<div class="d-flex flex-column flex-shrink-0 p-3 bg-light" style="width: 280px; height: 100vh; position: fixed;">
-    <a href="/" class="d-flex align-items-center mb-3 mb-md-0 me-md-auto text-decoration-none">
-        <i class="bi bi-clipboard-plus me-2"></i>
-        <span class="fs-4">Fithub</span>
-    </a>
-    <hr>
-    <ul class="nav nav-pills flex-column mb-auto">
-        <li class="nav-item">
-            <a href="AddExercises" class="nav-link active" aria-current="page">
-                <i class="bi bi-plus-circle me-2"></i> Add Exercise
-            </a>
-        </li>
-        <li>
-            <a href="exercises" class="nav-link text-dark">
-                <i class="bi bi-list-task me-2"></i> View Exercises
-            </a>
-        </li>
-        <li>
-            <a href="recipes" class="nav-link text-dark">
-                <i class="bi bi-gear me-2"></i> Recipes
-            </a>
-        </li>
-    </ul>
-    <hr>
-    <div class="dropdown">
-        <a href="#" class="d-flex align-items-center text-dark text-decoration-none dropdown-toggle" id="dropdownUser1" data-bs-toggle="dropdown" aria-expanded="false">
-            <img src="{{ url_for('static', filename='img/user.png') }}" alt="" width="32" height="32" class="rounded-circle me-2">
-            <strong>User</strong>
+
+    <!-- Sidebar -->
+    <div class="sidebar d-flex flex-column flex-shrink-0 p-3 bg-light">
+        <a href="/" class="d-flex align-items-center mb-3 mb-md-0 me-md-auto text-decoration-none">
+            <i class="bi bi-clipboard-plus me-2"></i>
+            <span class="fs-4">Fithub</span>
         </a>
-        <ul class="dropdown-menu text-small shadow" aria-labelledby="dropdownUser1">
-            <li><a class="dropdown-item" href="#">Profile</a></li>
-            <li><hr class="dropdown-divider"></li>
-            <li><a class="dropdown-item" href="login">Sign out</a></li>
+        <hr>
+        <ul class="nav nav-pills flex-column mb-auto">
+            <li class="nav-item">
+                <a href="AddExercises" class="nav-link active" aria-current="page">
+                    <i class="bi bi-plus-circle me-2"></i> Add Exercise
+                </a>
+            </li>
+            <li>
+                <a href="exercises" class="nav-link text-dark">
+                    <i class="bi bi-list-task me-2"></i> View Exercises
+                </a>
+            </li>
+            <li>
+                <a href="recipes" class="nav-link text-dark">
+                    <i class="bi bi-gear me-2"></i> Recipes
+                </a>
+            </li>
         </ul>
+        <hr>
+        <div class="dropdown">
+            <a href="#" class="d-flex align-items-center text-dark text-decoration-none dropdown-toggle" id="dropdownUser1" data-bs-toggle="dropdown" aria-expanded="false">
+                <img src="{{ url_for('static', filename='img/user.png') }}" alt="User Image" width="32" height="32" class="rounded-circle me-2">
+                <strong>User</strong>
+            </a>
+            <ul class="dropdown-menu text-small shadow" aria-labelledby="dropdownUser1">
+                <li><a class="dropdown-item" href="#">Profile</a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item" href="login">Sign out</a></li>
+            </ul>
+        </div>
     </div>
-</div>
 
     <!-- Recipes Section Start -->
-    <div class="container-xxl py-5">
-        <div class="container">
-            <div class="row g-0 gx-5 align-items-end">
-                <div class="col-lg-6">
-                    <div class="section-header text-start mb-5 wow fadeInUp" data-wow-delay="0.1s" style="max-width: 500px;">
-                        <h1 class="display-5 mb-3">Our Recipes</h1>
-                        <p>Choose the best recipe for your meal</p>
+    <div class="main-content">
+        <div class="container-xxl py-5">
+            <div class="container">
+                <div class="row g-0 gx-5 align-items-end">
+                    <div class="col-lg-6">
+                        <div class="section-header text-start mb-5 wow fadeInUp" data-wow-delay="0.1s" style="max-width: 500px;">
+                            <h1 class="display-5 mb-3">Our Recipes</h1>
+                            <p>Choose the best recipe for your meal</p>
+                        </div>
                     </div>
                 </div>
-            </div>
-            <div class="tab-content">
-                <div id="tab-recipes" class="tab-pane fade show p-0 active">
-                    <div class="row g-4">
-                        {% for recipe in recipes %}
-                        <div class="col-xl-3 col-lg-4 col-md-6 wow fadeInUp" data-wow-delay="0.5s">
-                            <div class="recipe-item">
-                                <div class="position-relative bg-light overflow-hidden">
-                                    <img class="img-fluid w-100" 
-                                         src="{{ recipe['Media'] if recipe['Media'].startswith('http') else url_for('static', filename=recipe['Media']) }}" 
-                                         alt="{{ recipe['Recipe_Name'] }}">
-                                    <div class="bg-secondary rounded text-white position-absolute start-0 top-0 m-4 py-1 px-3">Meal Type: {{ recipe['Meal_Type'] }}</div>
-                                </div>
-                                <div class="text-center p-4">
-                                    <h5 class="d-block mb-2">{{ recipe['Recipe_Name'] }}</h5>
-                                </div>
-                                <div class="d-flex border-top">
-                                    <small class="w-100 text-center py-2">
-                                        <a class="text-body" href="{{ url_for('GetRecipeDetails', recipe_id=recipe['Recipe_ID']|int) }}">
-                                            <i class="fa fa-eye text-primary me-2"></i>View Details
-                                        </a>
-                                        
-                                    </small>
+                <div class="tab-content">
+                    <div id="tab-recipes" class="tab-pane fade show p-0 active">
+                        <div class="row g-4">
+                            {% for recipe in recipes %}
+                            <div class="col-xl-3 col-lg-4 col-md-6 wow fadeInUp" data-wow-delay="0.5s">
+                                <div class="recipe-item">
+                                    <div class="position-relative bg-light overflow-hidden">
+                                        <img class="img-fluid w-100"
+                                             src="{{ recipe['Media'] if recipe['Media'] else url_for('static', filename='images/default_recipe.jpg') }}"
+                                             alt="{{ recipe['Recipe_Name'] if recipe['Media'] else 'Default Recipe Image' }}">
+                                        <div class="bg-secondary rounded text-white position-absolute start-0 top-0 m-4 py-1 px-3">
+                                            Meal Type: {{ recipe['Meal_Type'] }}
+                                        </div>
+                                    </div>
+                                    <div class="text-center p-4">
+                                        <h5 class="d-block mb-2">{{ recipe['Recipe_Name'] }}</h5>
+                                    </div>
+                                    <div class="d-flex border-top">
+                                        <small class="w-100 text-center py-2">
+                                            <a class="text-body" href="{{ url_for('GetRecipeDetails', recipe_id=recipe['Recipe_ID']|int) }}">
+                                                <i class="fa fa-eye text-primary me-2"></i>View Details
+                                            </a>
+                                        </small>
+                                    </div>
                                 </div>
                             </div>
+                            {% endfor %}
                         </div>
-                        {% endfor %}
                     </div>
                 </div>
             </div>

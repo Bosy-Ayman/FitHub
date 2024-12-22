@@ -65,3 +65,9 @@ input {
     margin-bottom: 5px;
 }
 
+.google_signin img {
+    width: 300px;
+    height: 65px;
+    margin: 10px 5px 5px 5px;
+    border-radius: 10px;
+}

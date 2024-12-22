@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Profile</title>
+    {# link to stylesheet #}
+    <link rel="stylesheet" href="{{ url_for('static', filename='personal_profile_coach_trainees.css') }}">
+</head>
+<body>
+<div class="top-banner">
+    <div class="user-info-wrapper">
+        <img src="{{ pfp }}" alt="Profile photo">
+        <p>
+            {{ gen_info[1] }} <br>
+            Coach<br>
+            Age: {{ gen_info[5] }}<br>
+        </p>
+    </div>
+    <form action="/editProfileCoach">
+        <button type="submit">Edit Profile</button>
+    </form>
+</div>
+<div class="redirections">
+    <form action="/profileCoachInformation">
+        <button type="submit" name="info">Information</button>
+    </form>
+    <form action="/profileCoachPosts">
+        <button type="submit" name="posts">My Posts</button>
+    </form>
+    <form action="/profileCoachTrainees">
+        <button type="submit" name="trainees">My Trainees</button>
+    </form>
+    <form action="/profileCoachRecipes">
+        <button type="submit" name="recipes">My Recipes</button>
+    </form>
+    <form action="/profileCoachExercises">
+        <button type="submit" name="exercises">My Exercises</button>
+    </form>
+</div>
+<div class="content">
+    <h3>My Trainees</h3>
+    {% for trainee in trainees %}
+        <div class="trainee-details">
+    	<img src="{{ trainee[1] }}" alt="trainee pfp"> {{ trainee[0] }}
+                <form method="POST" action="/traineeStatsCoach">
+                    <input type="hidden" name="trainee_id" value="{{ trainee[2] }}">
+                    <button type="submit">Statistics</button>
+                </form>
+        </div>
+    {% endfor %}
+    
+</div>
+</body>
+</html>

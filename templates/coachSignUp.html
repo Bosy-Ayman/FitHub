@@ -9,6 +9,13 @@
 <body>
 <div class="form-container">
 <h1>Coach</h1>
+    <div class="google_signin">
+        <a href="google/">
+            <img id="google"
+                 src="https://www.drupal.org/files/issues/2020-01-26/google_logo.png"
+                 alt="Google"><br>
+        </a>
+    </div>
 {# take coach's information to sign-up' #}
 <form action="/coach" method="POST">
     <p>
@@ -39,8 +46,6 @@
             </div>
         <br>
         <input type="password" id="password" name="password" required placeholder="Password">
-        <br>
-        <input type="text" id="sec_ans" name="sec_ans" required placeholder="{{ security_question }}">
         <br>
         <input type="number" id="expYears" name="expYears" required placeholder="Years of Experience">
         <br>

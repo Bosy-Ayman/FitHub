@@ -1,0 +1,29 @@
+name: Python Secrets Example
+
+on:
+  push:
+    branches:
+      - main  
+
+jobs:
+  run-python:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'  
+
+    - name: Install dependencies (if needed)
+      run: |
+        pip install -r requirements.txt
+
+    - name: Run Python script
+      env:
+        GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }} 
+        GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }} 
+      run: python your_script.py

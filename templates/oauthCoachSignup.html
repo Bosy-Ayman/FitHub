@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Coach</title>
+    {# link to stylesheet #}
+    <link rel="stylesheet" href="{{ url_for('static', filename='coachSignUp.css') }}">
+</head>
+<body>
+<div class="form-container">
+    <h1>Coach</h1>
+    {# take coach's information to sign-up' #}
+    <form action="/oauthCoachSignup" method="POST">
+        <p>
+            <input type="text" id="username" name="username" required placeholder="Name">
+            <br>
+            <input type="number" id="age" name="age" required placeholder="Age">
+            <br>
+        <div class="title">
+            Gender: <br>
+        </div>
+        <div class="radio">
+            <input type="radio" id="Female" name="gender" value="Female">
+            <label for="Female">Female</label><br>
+            <input type="radio" id="Male" name="gender" value="Male">
+            <label for="Male">Male</label><br>
+            <br>
+        </div>
+        <div class="title">
+            Check all your interests:
+        </div>
+        <div class="checkbox-grid">
+            {% for interest in interests %}
+                <input type="checkbox" id="interest-{{ interest[0] }}" name="interests" value="{{ interest[0] }}">
+                <label for="interest-{{ interest[0] }}">{{ interest[1] }}</label>
+            {% endfor %}
+        </div>
+        <br>
+        <input type="text" id="sec_ans" name="sec_ans" required placeholder="{{ security_question }}">
+        <br>
+        <input type="number" id="expYears" name="expYears" required placeholder="Years of Experience">
+        <br>
+        <input type="text" id="expDesc" name="expDesc" required placeholder="Write about your coaching experiences">
+        <br>
+        <input type="text" id="certificates" name="certificates" placeholder="Provide your certificates links, separated by a space (e.g. 'cert1.com cert2.com')">
+        <br>
+        {# button to sign-up #}
+        <button type="submit">Sign Up!</button>
+        </p>
+    </form>
+</div>
+</body>
+</html>
