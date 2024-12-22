@@ -1,5 +1,4 @@
 # importing necessary libraries
-import tempfile
 from flask import Flask, render_template, request, session, flash, redirect, url_for, send_file, jsonify
 from io import BytesIO
 import sqlite3
@@ -13,8 +12,6 @@ import os
 from authlib.integrations.flask_client import OAuth
 from flask_bcrypt import Bcrypt
 import tempfile
-from werkzeug.utils import secure_filename
-import mimetypes
 
 # database path
 DATABASE = 'FitHub_DB.sqlite'
